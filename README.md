@@ -4,7 +4,7 @@
 - 🔭 Atualmente estou trabalhando em projetos incríveis.
 - 🌱 Sempre aprendendo novas tecnologias.
 - 💬 Pergunte-me sobre desenvolvimento, código aberto e inovação.
-- 📫 Como me encontrar: [Seu LinkedIn ou Twitter aqui]
+- 📫 Como me encontrar: [@__.OHenrique]
 
 ## 🚀 Habilidades & Tecnologias
 ![JavaScript](https://img.shields.io/badge/-JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black)
