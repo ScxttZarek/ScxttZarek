@@ -11,6 +11,11 @@ function replace(path, from, to) {
 /* Home */
 replace(
   "components/home/home-client.tsx",
+  '["Sem cadastro", "Sem anúncios", "Compartilhamento em até 1080p", "Feito para PC"]',
+  '["Sem cadastro", "Sem anúncios", "PC e celular", "Tela em até 1080p no PC"]'
+);
+replace(
+  "components/home/home-client.tsx",
   '<main className="lumacall-home relative min-h-screen overflow-hidden px-6">',
   '<main className="lumacall-home relative min-h-dvh overflow-x-hidden px-4 sm:px-6">'
 );
@@ -80,6 +85,12 @@ replace(
   "components/call/pre-join.tsx",
   '<form onSubmit={submit} className="grid w-full grid-cols-[1.1fr_.9fr] gap-7">',
   '<form onSubmit={submit} className="grid w-full grid-cols-1 gap-4 lg:grid-cols-[1.1fr_.9fr] lg:gap-7">'
+);
+
+replace(
+  "components/call/pre-join.tsx",
+  '<section className="glass rounded-[28px] p-7">',
+  '<section className="glass rounded-[28px] p-5 sm:p-7">'
 );
 
 /* Room shell */
