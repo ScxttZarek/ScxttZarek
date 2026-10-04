@@ -163,6 +163,12 @@ if (!css.includes("/* LunaCall mobile v1 */")) {
     display: none !important;
   }
 
+  .desktop-shell {
+    display: block !important;
+    width: 100%;
+    min-height: 100dvh;
+  }
+
   .participant-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
     align-content: start;
