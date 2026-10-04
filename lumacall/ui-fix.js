@@ -19,7 +19,7 @@ if (!call.includes('const columns = participants.length <= 1 ? 1 : participants.
 }
 call = call.replace(
   'const columns = participants.length <= 1 ? 1 : participants.length <= 4 ? 2 : 3;',
-  'const tileCount = participants.length + (screenParticipant ? 1 : 0);\n  const columns = tileCount <= 1 ? 1 : tileCount <= 4 ? 2 : 3;'
+  'const tileCount = participants.length;\n  const columns = tileCount <= 1 ? 1 : tileCount <= 4 ? 2 : 3;'
 );
 
 const mainOpen = '      <main className={cn("h-full p-3 transition-[padding] duration-200", panelOpen ? "pr-[362px]" : "pr-3")}>';
@@ -32,13 +32,19 @@ if (start === -1 || end === -1) {
 }
 
 const newMain = [
-  mainOpen,
+  '      <main className={cn("lumacall-call-stage h-full p-3 transition-[padding] duration-200", panelOpen ? "pr-[362px]" : "pr-3")}>',
   '        <div className="relative h-full overflow-y-auto">',
   '          <div className="mx-auto grid min-h-full w-full max-w-6xl content-center gap-3 py-1" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>',
-  '            {screenParticipant && <div className="mx-auto aspect-square w-full max-w-[420px]"><ScreenShareView participant={screenParticipant} revision={revision} focused={focusScreen} onToggleFocus={() => setFocusScreen((value) => !value)} /></div>}',
-  '            {participants.map((participant) => <div key={participant.identity} className="mx-auto aspect-square w-full max-w-[420px]"><ParticipantTile participant={participant} revision={revision} compact canModerate={isHost} onMute={muteParticipant} onRemove={setRemoveTarget} /></div>)}',
+  '            {participants.map((participant) => {',
+  '              const sharingThisParticipant = screenParticipant?.identity === participant.identity;',
+  '              return <div key={participant.identity} className="mx-auto aspect-square w-full max-w-[420px]">',
+  '                {sharingThisParticipant',
+  '                  ? <ScreenShareView participant={participant} revision={revision} focused={focusScreen} onToggleFocus={() => setFocusScreen((value) => !value)} />',
+  '                  : <ParticipantTile participant={participant} revision={revision} compact canModerate={isHost} onMute={muteParticipant} onRemove={setRemoveTarget} />}',
+  '              </div>;',
+  '            })}',
   '          </div>',
-  '          {participants.length === 1 && !screenParticipant && <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl border border-white/[.07] bg-black/55 px-4 py-2.5 text-center backdrop-blur-md"><p className="text-xs font-medium text-zinc-300">Você está sozinho por enquanto.</p><p className="mt-0.5 text-[10px] text-zinc-600">Compartilhe o link da sala para convidar alguém.</p></div>}',
+  '          {participants.length === 1 && !screenParticipant && <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl border border-white/[.07] bg-black/55 px-4 py-2.5 text-center shadow-xl shadow-black/20 backdrop-blur-md"><p className="text-xs font-medium text-zinc-300">Você está sozinho por enquanto.</p><p className="mt-0.5 text-[10px] text-zinc-600">Compartilhe o link da sala para convidar alguém.</p></div>}',
   '        </div>',
   '      </main>'
 ].join("\n");
