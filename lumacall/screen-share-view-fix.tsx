@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Expand, Volume2, VolumeX } from "lucide-react";
+import { Expand, Scissors, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { Participant, RemoteParticipant, Track } from "livekit-client";
 
 export function ScreenShareView({
@@ -22,7 +22,7 @@ export function ScreenShareView({
   const audioPublication = participant.getTrackPublication(Track.Source.ScreenShareAudio);
   const track = publication?.track;
   const isRemote = participant instanceof RemoteParticipant;
-  const hasSharedAudio = Boolean(audioPublication?.track && !audioPublication.isMuted);
+  const hasSharedAudio = Boolean(audioPublication?.track && !audioPublication.isMuted);\n  let badge: "creator" | "editor" | undefined;\n  try { badge = JSON.parse(participant.metadata || "{}").badge; } catch {}
 
   useEffect(() => {
     const saved = Number(localStorage.getItem("lumacall.screenShareVolume"));
