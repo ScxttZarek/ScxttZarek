@@ -1,50 +1,54 @@
 const fs = require("fs");
 
-function replace(path, from, to) {
-  const source = fs.readFileSync(path, "utf8");
-  if (!source.includes(from)) throw new Error("Trecho esperado não encontrado em " + path);
-  fs.writeFileSync(path, source.replace(from, to));
+const participantPath = "components/call/participant-tile.tsx";
+let participant = fs.readFileSync(participantPath, "utf8");
+if (!participant.includes('compact ? "aspect-video" : "min-h-0"')) {
+  throw new Error("Não foi possível localizar o tamanho original dos participantes.");
+}
+participant = participant.replace(
+  'compact ? "aspect-video" : "min-h-0"',
+  'compact ? "aspect-square h-full w-full" : "min-h-0"'
+);
+fs.writeFileSync(participantPath, participant);
+
+const callPath = "components/call/call-room.tsx";
+let call = fs.readFileSync(callPath, "utf8");
+
+if (!call.includes('const columns = participants.length <= 1 ? 1 : participants.length <= 4 ? 2 : 3;')) {
+  throw new Error("Não foi possível localizar o cálculo original da grade.");
+}
+call = call.replace(
+  'const columns = participants.length <= 1 ? 1 : participants.length <= 4 ? 2 : 3;',
+  'const tileCount = participants.length + (screenParticipant ? 1 : 0);\n  const columns = tileCount <= 1 ? 1 : tileCount <= 4 ? 2 : 3;'
+);
+
+const mainOpen = '      <main className={cn("h-full p-3 transition-[padding] duration-200", panelOpen ? "pr-[362px]" : "pr-3")}>';
+const mainClose = '\n      </main>';
+const start = call.indexOf(mainOpen);
+const end = call.indexOf(mainClose, start);
+
+if (start === -1 || end === -1) {
+  throw new Error("Não foi possível localizar a área principal da chamada.");
 }
 
-replace(
-  "components/call/participant-tile.tsx",
-  'compact ? "aspect-video" : "min-h-0"',
-  'compact ? "aspect-square h-full" : "aspect-square min-h-0"'
-);
+const newMain = [
+  mainOpen,
+  '        <div className="relative h-full overflow-y-auto">',
+  '          <div className="mx-auto grid min-h-full w-full max-w-6xl content-center gap-3 py-1" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>',
+  '            {screenParticipant && <div className="mx-auto aspect-square w-full max-w-[420px]"><ScreenShareView participant={screenParticipant} revision={revision} focused={focusScreen} onToggleFocus={() => setFocusScreen((value) => !value)} /></div>}',
+  '            {participants.map((participant) => <div key={participant.identity} className="mx-auto aspect-square w-full max-w-[420px]"><ParticipantTile participant={participant} revision={revision} compact canModerate={isHost} onMute={muteParticipant} onRemove={setRemoveTarget} /></div>)}',
+  '          </div>',
+  '          {participants.length === 1 && !screenParticipant && <div className="pointer-events-none absolute bottom-5 left-1/2 -translate-x-1/2 rounded-xl border border-white/[.07] bg-black/55 px-4 py-2.5 text-center backdrop-blur-md"><p className="text-xs font-medium text-zinc-300">Você está sozinho por enquanto.</p><p className="mt-0.5 text-[10px] text-zinc-600">Compartilhe o link da sala para convidar alguém.</p></div>}',
+  '        </div>',
+  '      </main>'
+].join("\n");
 
-replace(
-  "components/call/call-room.tsx",
-  'className="scrollbar-thin flex h-[132px] shrink-0 gap-2 overflow-x-auto"',
-  'className="scrollbar-thin flex h-[148px] shrink-0 gap-2 overflow-x-auto pb-1"'
-);
-
-replace(
-  "components/call/call-room.tsx",
-  'className="h-full w-[210px] shrink-0"',
-  'className="aspect-square h-full shrink-0"'
-);
-
-replace(
-  "components/call/call-room.tsx",
-  '<div className="relative h-full"><div className="grid h-full gap-2"',
-  '<div className="relative h-full overflow-y-auto"><div className="mx-auto grid min-h-full w-full max-w-6xl content-center gap-3"'
-);
-
-replace(
-  "components/call/call-room.tsx",
-  ', gridAutoRows: "minmax(0, 1fr)"',
-  ''
-);
-
-replace(
-  "components/call/call-room.tsx",
-  '{participants.map((participant) => <ParticipantTile key={participant.identity} participant={participant} revision={revision} canModerate={isHost} onMute={muteParticipant} onRemove={setRemoveTarget} />)}</div>',
-  '{participants.map((participant) => <div key={participant.identity} className="mx-auto aspect-square w-full max-w-[360px]"><ParticipantTile participant={participant} revision={revision} compact canModerate={isHost} onMute={muteParticipant} onRemove={setRemoveTarget} /></div>)}</div>'
-);
+call = call.slice(0, start) + newMain + call.slice(end + mainClose.length);
+fs.writeFileSync(callPath, call);
 
 const cssPath = "app/globals.css";
 let css = fs.readFileSync(cssPath, "utf8");
 if (!css.includes(".screen-share-frame:fullscreen")) {
   css += "\n\n.screen-share-frame:fullscreen {\n  width: 100vw;\n  height: 100vh;\n  border: 0;\n  border-radius: 0;\n  background: #050506;\n}\n";
-  fs.writeFileSync(cssPath, css);
 }
+fs.writeFileSync(cssPath, css);
