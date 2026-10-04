@@ -1,9 +1,9 @@
 const fs = require("fs");
-for (const path of ["components/call/chat-panel.tsx", "components/call/call-room.tsx", "components/home/home-client.tsx"]) {
-  const source = fs.readFileSync(path, "utf8");
-  console.log("===== FILE " + path + " =====");
-  for (let i = 0; i < source.length; i += 3500) {
-    console.log("CHUNK " + (i / 3500 + 1) + "\n" + source.slice(i, i + 3500));
-  }
-  console.log("===== END =====");
-}
+const chat = fs.readFileSync("components/call/chat-panel.tsx", "utf8");
+const call = fs.readFileSync("components/call/call-room.tsx", "utf8");
+const home = fs.readFileSync("components/home/home-client.tsx", "utf8");
+const mainStart = call.indexOf("<main className=");
+const mainEnd = call.indexOf("</main>", mainStart) + 7;
+console.log("CHATJSON=" + JSON.stringify(chat));
+console.log("CALLMAINJSON=" + JSON.stringify(call.slice(mainStart, mainEnd)));
+console.log("HOMEJSON=" + JSON.stringify(home));
