@@ -22,7 +22,12 @@ export function ScreenShareView({
   const audioPublication = participant.getTrackPublication(Track.Source.ScreenShareAudio);
   const track = publication?.track;
   const isRemote = participant instanceof RemoteParticipant;
-  const hasSharedAudio = Boolean(audioPublication?.track && !audioPublication.isMuted);\n  let badge: "creator" | "editor" | undefined;\n  try { badge = JSON.parse(participant.metadata || "{}").badge; } catch {}
+  const hasSharedAudio = Boolean(audioPublication?.track && !audioPublication.isMuted);
+
+  let badge: "creator" | "editor" | undefined;
+  try {
+    badge = JSON.parse(participant.metadata || "{}").badge;
+  } catch {}
 
   useEffect(() => {
     const saved = Number(localStorage.getItem("lumacall.screenShareVolume"));
@@ -62,8 +67,20 @@ export function ScreenShareView({
     <div ref={containerRef} className="screen-share-frame flex h-full w-full flex-col overflow-hidden rounded-2xl border border-white/[.07] bg-[#08090b]">
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-white/[.07] bg-[#0d0e11] px-3">
         <div className="min-w-0">
-          <div className="truncate text-xs font-semibold text-zinc-100">
-            {participant.name || "Participante"}{participant.isLocal ? " (você)" : ""}
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-xs font-semibold text-zinc-100">
+              {participant.name || "Participante"}{participant.isLocal ? " (você)" : ""}
+            </span>
+            {badge === "creator" && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-300/20 bg-violet-300/10 px-1.5 py-0.5 text-[8px] font-semibold text-violet-200">
+                <Sparkles className="size-2.5" />CRIADOR
+              </span>
+            )}
+            {badge === "editor" && (
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-cyan-300/20 bg-cyan-300/10 px-1.5 py-0.5 text-[8px] font-semibold text-cyan-200">
+                <Scissors className="size-2.5" />EDITOR
+              </span>
+            )}
           </div>
           <div className="text-[10px] text-zinc-500">está compartilhando a tela</div>
         </div>
