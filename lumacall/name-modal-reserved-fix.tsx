@@ -108,7 +108,7 @@ export function NameModal({
   );
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/65 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="name-title">
+    <div className="fixed inset-0 z-[90] grid place-items-center bg-black/65 px-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="name-title">
       <form onSubmit={submit} className="glass relative w-full max-w-[420px] rounded-3xl p-7">
         {onClose && <button type="button" onClick={onClose} className="focus-ring absolute right-5 top-5 rounded-lg p-2 text-zinc-500 hover:bg-white/[.05] hover:text-white" aria-label="Fechar"><X className="size-4" /></button>}
         <div className="mb-5 grid size-11 place-items-center rounded-2xl bg-violet-400/10 text-violet-300">
