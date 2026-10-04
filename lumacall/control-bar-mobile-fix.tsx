@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRoomContext } from "@livekit/components-react";
+import { RoomEvent } from "livekit-client";
 import { Camera, CameraOff, MessageSquare, Mic, MicOff, MonitorUp, PhoneOff, Settings, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playJoinSound } from "@/lib/join-sound";
 
 export function ControlBar({
   micEnabled,
@@ -34,10 +37,17 @@ export function ControlBar({
   onLeave: () => void;
 }) {
   const [screenShareSupported, setScreenShareSupported] = useState(false);
+  const room = useRoomContext();
 
   useEffect(() => {
     setScreenShareSupported(Boolean(navigator.mediaDevices?.getDisplayMedia));
   }, []);
+
+  useEffect(() => {
+    const joined = () => { void playJoinSound(); };
+    room.on(RoomEvent.ParticipantConnected, joined);
+    return () => { room.off(RoomEvent.ParticipantConnected, joined); };
+  }, [room]);
 
   return (
     <div className="control-bar flex h-[76px] shrink-0 items-center justify-center border-t border-white/[.06] bg-[#0a0b0d]/90 px-3 backdrop-blur-xl">
