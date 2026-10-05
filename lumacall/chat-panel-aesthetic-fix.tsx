@@ -4,6 +4,7 @@ import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { useChat } from "@livekit/components-react";
 import { MessageCircleMore, Scissors, Send, Sparkles, X } from "lucide-react";
 import { CHAT_MAX } from "@/lib/constants";
+import { reservedAvatarForBadge } from "@/lib/reserved-profile";
 import { sanitizeChatMessage } from "@/lib/utils";
 
 type Badge = "creator" | "editor";
@@ -22,6 +23,10 @@ function senderStyle(badge?: Badge) {
   if (badge === "creator") return "text-violet-300";
   if (badge === "editor") return "text-cyan-300";
   return "text-zinc-200";
+}
+
+function fallbackInitial(name: string) {
+  return (name.trim().charAt(0) || "?").toUpperCase();
 }
 
 function MessageBody({ text }: { text: string }) {
@@ -124,7 +129,7 @@ export function ChatPanel({
         </button>
       </header>
 
-      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-3 py-4">
+      <div className="scrollbar-thin min-h-0 flex-1 overflow-y-auto px-2 py-3">
         {chatMessages.length === 0 ? (
           <div className="grid h-full min-h-[220px] place-items-center">
             <div className="max-w-[230px] text-center">
@@ -136,9 +141,10 @@ export function ChatPanel({
             </div>
           </div>
         ) : (
-          <div className="space-y-2.5">
+          <div className="space-y-0.5">
             {chatMessages.map((item, index) => {
               const badge = badgeOf(item.from?.metadata);
+              const avatar = reservedAvatarForBadge(badge);
               const name = item.from?.name || "Participante";
               const own = Boolean(item.from?.isLocal);
               const time = new Intl.DateTimeFormat("pt-BR", {
@@ -149,34 +155,48 @@ export function ChatPanel({
               return (
                 <article
                   key={`${item.timestamp}-${index}`}
-                  className={[
-                    "rounded-2xl border px-3.5 py-3 transition",
-                    own
-                      ? "border-violet-300/10 bg-violet-300/[.045]"
-                      : "border-white/[.055] bg-white/[.018]",
-                  ].join(" ")}
+                  className="group flex gap-3 rounded-xl px-2.5 py-2.5 transition-colors hover:bg-white/[.025]"
                 >
-                  <div className="mb-1.5 flex min-w-0 items-center gap-1.5">
-                    <span className={`truncate text-[11px] font-semibold ${senderStyle(badge)}`}>
-                      {name}{own ? " (você)" : ""}
-                    </span>
-
-                    {badge === "creator" && (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-300/15 bg-violet-300/[.08] px-1.5 py-0.5 text-[7px] font-bold tracking-[.08em] text-violet-200">
-                        <Sparkles className="size-2" /> CRIADOR
-                      </span>
+                  <div className="mt-0.5 shrink-0">
+                    {avatar ? (
+                      <img
+                        src={avatar}
+                        alt=""
+                        className={[
+                          "size-9 rounded-full object-cover ring-2",
+                          badge === "creator" ? "ring-violet-400/45" : "ring-cyan-400/45",
+                        ].join(" ")}
+                      />
+                    ) : (
+                      <div className="grid size-9 place-items-center rounded-full border border-white/[.07] bg-white/[.04] text-[11px] font-semibold text-zinc-400">
+                        {fallbackInitial(name)}
+                      </div>
                     )}
-
-                    {badge === "editor" && (
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-cyan-300/15 bg-cyan-300/[.08] px-1.5 py-0.5 text-[7px] font-bold tracking-[.08em] text-cyan-200">
-                        <Scissors className="size-2" /> EDITOR
-                      </span>
-                    )}
-
-                    <time className="ml-auto shrink-0 text-[9px] tabular-nums text-zinc-650">{time}</time>
                   </div>
 
-                  <MessageBody text={item.message} />
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex min-w-0 items-center gap-1.5">
+                      <span className={`truncate text-[12px] font-bold ${senderStyle(badge)}`}>
+                        {name}{own ? " (você)" : ""}
+                      </span>
+
+                      {badge === "creator" && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-violet-300/25 bg-violet-400/[.12] px-2 py-0.5 text-[8px] font-bold tracking-[.08em] text-violet-100">
+                          <Sparkles className="size-2.5" /> CRIADOR
+                        </span>
+                      )}
+
+                      {badge === "editor" && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-400/[.12] px-2 py-0.5 text-[8px] font-bold tracking-[.08em] text-cyan-100">
+                          <Scissors className="size-2.5" /> EDITOR
+                        </span>
+                      )}
+
+                      <time className="ml-auto shrink-0 text-[9px] tabular-nums text-zinc-600">{time}</time>
+                    </div>
+
+                    <MessageBody text={item.message} />
+                  </div>
                 </article>
               );
             })}
