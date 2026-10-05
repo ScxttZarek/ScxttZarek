@@ -1,0 +1,1 @@
+const fs=require("fs");for(const p of ["components/home/home-client.tsx","app/layout.tsx"]){const s=fs.readFileSync(p,"utf8");for(let i=0;i<s.length;i+=2200)console.log("PWAINSPECT|"+p+"|"+i+"|"+JSON.stringify(s.slice(i,i+2200)));}
