@@ -201,15 +201,19 @@ if (!css.includes("/* LunaCall mobile v1 */")) {
     z-index: 80;
     width: 100%;
     padding-bottom: max(0px, env(safe-area-inset-bottom));
-    background: rgba(10, 11, 13, .96);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    background: transparent;
   }
 
   .control-bar-inner {
-    max-width: 100%;
+    max-width: calc(100vw - 16px);
     overflow-x: auto;
     scrollbar-width: none;
+  }
+
+  .control-dock {
+    background: rgba(17, 18, 23, .96);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   .lumacall-call-stage {
@@ -273,6 +277,19 @@ if (!css.includes("/* LunaCall mobile v1 */")) {
     width: 100%;
     justify-content: space-between;
     gap: 4px;
+  }
+
+  .control-dock {
+    background: #111217;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,.24);
+  }
+
+  .call-header,
+  .lumacall-chat-panel {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .control-bar button {
