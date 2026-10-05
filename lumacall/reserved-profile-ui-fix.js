@@ -61,54 +61,6 @@ replace(
 );
 
 replace(
-  "components/call/chat-panel.tsx",
-  'import { sanitizeChatMessage } from "@/lib/utils";',
-  'import { sanitizeChatMessage } from "@/lib/utils";\nimport { reservedAvatarForBadge } from "@/lib/reserved-profile";'
-);
-
-replace(
-  "components/call/chat-panel.tsx",
-  '              const badge = badgeOf(item.from?.metadata);\n              const name = item.from?.name || "Participante";',
-  '              const badge = badgeOf(item.from?.metadata);\n              const avatar = reservedAvatarForBadge(badge);\n              const name = item.from?.name || "Participante";'
-);
-
-replace(
-  "components/call/chat-panel.tsx",
-  '<div className="mb-1.5 flex min-w-0 items-center gap-1.5">',
-  '<div className="mb-2 flex min-w-0 items-center gap-2">\n                    {avatar && <img src={avatar} alt="" className={badge === "creator" ? "size-7 shrink-0 rounded-full object-cover ring-2 ring-violet-400/45" : "size-7 shrink-0 rounded-full object-cover ring-2 ring-cyan-400/45"} />}'
-);
-
-replace(
-  "components/call/chat-panel.tsx",
-  'truncate text-[11px] font-semibold',
-  'truncate text-[12px] font-bold'
-);
-
-replace(
-  "components/call/chat-panel.tsx",
-  '<span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-300/15 bg-violet-300/[.08] px-1.5 py-0.5 text-[7px] font-bold tracking-[.08em] text-violet-200">',
-  '<span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-violet-300/25 bg-violet-400/[.12] px-2 py-1 text-[9px] font-bold tracking-[.08em] text-violet-100 shadow-[0_0_14px_rgba(139,92,246,.10)]">'
-);
-
-replace(
-  "components/call/chat-panel.tsx",
-  '<Sparkles className="size-2" /> CRIADOR',
-  '<Sparkles className="size-3" /> CRIADOR'
-);
-
-replace(
-  "components/call/chat-panel.tsx",
-  '<span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-cyan-300/15 bg-cyan-300/[.08] px-1.5 py-0.5 text-[7px] font-bold tracking-[.08em] text-cyan-200">',
-  '<span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-cyan-300/25 bg-cyan-400/[.12] px-2 py-1 text-[9px] font-bold tracking-[.08em] text-cyan-100 shadow-[0_0_14px_rgba(34,211,238,.10)]">'
-);
-
-replace(
-  "components/call/chat-panel.tsx",
-  '<Scissors className="size-2" /> EDITOR',
-  '<Scissors className="size-3" /> EDITOR'
-);
-
-replace(
   "components/call/screen-share-view.tsx",
   'className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-300/20 bg-violet-300/10 px-1.5 py-0.5 text-[8px] font-semibold text-violet-200"',
   'className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-violet-300/30 bg-violet-400/[.14] px-2 py-1 text-[9px] font-bold tracking-[.07em] text-violet-100"'
