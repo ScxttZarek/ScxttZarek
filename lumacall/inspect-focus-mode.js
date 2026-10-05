@@ -1,0 +1,1 @@
+const fs=require("fs");for(const p of ["components/call/call-room.tsx","components/call/participant-tile.tsx","components/call/screen-share-view.tsx"]){const s=fs.readFileSync(p,"utf8");for(let i=0;i<s.length;i+=2200)console.log("FOCUSINSPECT|"+p+"|"+i+"|"+JSON.stringify(s.slice(i,i+2200)));}
