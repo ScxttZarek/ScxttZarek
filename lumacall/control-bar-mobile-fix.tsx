@@ -115,7 +115,7 @@ export function ControlBar({
           onClick={onLeave}
           title="Sair da chamada"
           aria-label="Sair da chamada"
-          className="focus-ring grid size-11 shrink-0 place-items-center rounded-xl border border-red-400/20 bg-red-500/90 text-white transition hover:bg-red-500"
+          className="focus-ring grid size-11 shrink-0 place-items-center rounded-xl border border-red-400/25 bg-red-500/90 text-white transition hover:bg-red-500 active:scale-[.96]"
         >
           <PhoneOff className="size-[18px]" />
         </button>
@@ -149,7 +149,7 @@ function ControlButton({
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "focus-ring grid size-11 shrink-0 place-items-center rounded-xl border text-zinc-300 transition",
+        "focus-ring grid size-11 shrink-0 place-items-center rounded-xl border text-zinc-300 transition active:scale-[.96]",
         "border-white/[.08] bg-white/[.035] hover:bg-white/[.07] hover:text-white",
         active && "text-white",
         highlighted && "border-violet-300/20 bg-violet-300/[.10] text-violet-200",
