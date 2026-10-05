@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
-import { MAX_PARTICIPANTS } from "@/lib/constants";
 import { bearerSession } from "@/lib/livekit/app-session";
 import { getRoomService, parseRoomMetadata } from "@/lib/livekit/server";
-import { pruneWaitingRequests } from "@/lib/livekit/waiting-room";
 import { allowRequest, requestIp } from "@/lib/rate-limit";
 import { moderationRequestSchema } from "@/lib/validation";
 
@@ -11,7 +9,7 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
     const ip = requestIp(request.headers);
-    if (!allowRequest("moderate:" + ip, 60, 60_000)) {
+    if (!allowRequest(`moderate:${ip}`, 60, 60_000)) {
       return NextResponse.json({ error: "Muitas ações em sequência. Tente novamente em instantes." }, { status: 429 });
     }
 
@@ -56,33 +54,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
-    if (action.action === "wait-accept" || action.action === "wait-reject") {
-      const waiting = pruneWaitingRequests(metadata.waiting);
-      const target = waiting.find((entry) => entry.id === action.requestId);
-      if (!target) {
-        return NextResponse.json({ error: "Esse pedido de entrada não está mais disponível." }, { status: 404 });
-      }
-
-      if (action.action === "wait-accept" && participants.length >= MAX_PARTICIPANTS) {
-        return NextResponse.json({ error: "A sala já está com 6 participantes." }, { status: 409 });
-      }
-
-      const nextStatus = action.action === "wait-accept" ? "approved" : "rejected";
-      const nextWaiting = waiting.map((entry) =>
-        entry.id === action.requestId ? { ...entry, status: nextStatus } : entry
-      );
-      await service.updateRoomMetadata(
-        session.roomId,
-        JSON.stringify({ ...metadata, waiting: nextWaiting }),
-      );
-      return NextResponse.json({ ok: true, status: nextStatus });
-    }
-
-    const nextMetadata = {
-      ...metadata,
-      locked: action.locked,
-      waiting: pruneWaitingRequests(metadata.waiting),
-    };
+    const nextMetadata = { ...metadata, locked: action.locked };
     await service.updateRoomMetadata(session.roomId, JSON.stringify(nextMetadata));
     return NextResponse.json({ ok: true, locked: action.locked });
   } catch (error) {
