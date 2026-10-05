@@ -1,7 +1,9 @@
 const fs = require("fs");
-for (const path of ["components/call/room-client.tsx","components/call/call-room.tsx"]) {
-  if (!fs.existsSync(path)) continue;
+for (const path of ["components/call/control-bar.tsx","components/call/chat-panel.tsx"]) {
   const src = fs.readFileSync(path, "utf8");
-  const starts = path.includes("room-client") ? [0,1600,3200,4800] : [11800,13600,15400,17200,19000];
-  for (const i of starts) console.log("CUT|" + path + "|" + i + "|" + JSON.stringify(src.slice(i,i+1600)));
+  const needles = path.includes("control-bar") ? ["unread", "MessageSquare"] : ["onUnread", "chatMessages"];
+  for (const n of needles) {
+    const i = src.indexOf(n);
+    console.log("REL|" + path + "|" + n + "|" + JSON.stringify(i >= 0 ? src.slice(Math.max(0,i-900),i+1800) : ""));
+  }
 }
