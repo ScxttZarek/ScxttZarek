@@ -166,27 +166,6 @@ function mustReplace(src, from, to, label) {
 }
 
 
-{
-  const auditPaths = [
-    "app/globals.css",
-    "components/call/call-room.tsx",
-    "components/call/control-bar.tsx",
-    "components/call/chat-panel.tsx",
-    "components/call/participants-panel.tsx",
-    "components/call/settings-modal.tsx",
-    "components/call/pre-join.tsx",
-    "components/ui/mobile-gate.tsx",
-    "components/home/home-client.tsx"
-  ];
-  for (const auditPath of auditPaths) {
-    if (!fs.existsSync(auditPath)) continue;
-    const auditSource = fs.readFileSync(auditPath, "utf8");
-    for (let i = 0; i < auditSource.length; i += 2000) {
-      console.log("MOBILEAUDIT|" + auditPath + "|" + i + "|" + JSON.stringify(auditSource.slice(i, i + 2000)));
-    }
-  }
-}
-
 
 {
   function around(path, needle, before = 500, after = 1500) {
@@ -195,12 +174,12 @@ function mustReplace(src, from, to, label) {
     console.log("MCHECK|" + path + "|" + needle + "|" + JSON.stringify(index >= 0 ? source.slice(Math.max(0,index-before), index+after) : "NOT_FOUND"));
   }
   around("app/globals.css", "@media (max-width: 860px)", 200, 3400);
-  around("app/globals.css", "@media (max-width: 560px)", 200, 2500);
-  around("components/home/home-client.tsx", "<header", 200, 1800);
-  around("components/call/pre-join.tsx", "return (", 300, 3200);
-  around("components/call/settings-modal.tsx", "return (", 300, 3000);
-  around("components/ui/mobile-gate.tsx", "return", 200, 1800);
-  around("components/call/call-room.tsx", "participant-grid", 1000, 2600);
-  around("components/call/call-room.tsx", "const onKey", 300, 1000);
-  around("components/call/participants-panel.tsx", "return <aside", 100, 2200);
+  around("app/globals.css", "@media (max-width: 560px)", 200, 2800);
+  around("components/home/home-client.tsx", "<header", 200, 1900);
+  around("components/call/pre-join.tsx", "return (", 300, 3500);
+  around("components/call/settings-modal.tsx", "return (", 300, 3300);
+  around("components/ui/mobile-gate.tsx", "return", 200, 2000);
+  around("components/call/call-room.tsx", "participant-grid", 1200, 3000);
+  around("components/call/call-room.tsx", "const onKey", 300, 1200);
+  around("components/call/participants-panel.tsx", "return <aside", 100, 2500);
 }
