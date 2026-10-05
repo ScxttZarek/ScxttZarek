@@ -7,7 +7,8 @@
 <title>LunaChat</title>
 <meta name="description" content="LunaChat — conversas privadas para um grupo fechado.">
 <link rel="manifest" href="/manifest.webmanifest">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">\n<link rel="apple-touch-icon" href="/icon.svg">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
 <meta name="application-name" content="LunaChat">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,12 +35,32 @@ const time=d=>new Intl.DateTimeFormat("pt-BR",{hour:"2-digit",minute:"2-digit"})
 const nearBottom=(el,px=150)=>!el||el.scrollHeight-el.scrollTop-el.clientHeight<px;
 function toBottom(el=$("#msgs"),smooth=false){if(!el)return;requestAnimationFrame(()=>requestAnimationFrame(()=>el.scrollTo({top:el.scrollHeight,behavior:smooth?"smooth":"auto"})))}
 let deferredInstallPrompt=null;
-function refreshInstallButton(){const standalone=matchMedia("(display-mode: standalone)").matches;[$("#install"),$("#installLogin")].filter(Boolean).forEach(b=>b.hidden=!deferredInstallPrompt||standalone)}
-async function installApp(){if(!deferredInstallPrompt)return toast("Use o menu do navegador e escolha “Instalar app” ou “Adicionar à tela inicial”.");deferredInstallPrompt.prompt();await deferredInstallPrompt.userChoice;deferredInstallPrompt=null;refreshInstallButton()}
+function refreshInstallButton(){const standalone=matchMedia("(display-mode: standalone)").matches;[$("#install"),$("#installLogin")].filter(Boolean).forEach(b=>b.hidden=standalone)}
+async function installApp(){
+    if(deferredInstallPrompt){
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt=null;
+      refreshInstallButton();
+      return;
+    }
+    const ua=navigator.userAgent.toLowerCase();
+    if(ua.includes("android")) return installHelp("Android: toque em ⋮ no Chrome e escolha “Instalar app” ou “Adicionar à tela inicial”.");
+    if(ua.includes("edg/")) return installHelp("Microsoft Edge: clique em ⋯ → Aplicativos → Instalar LunaChat.");
+    if(ua.includes("chrome")) return installHelp("Google Chrome: clique no ícone de instalar na barra de endereço ou em ⋮ → Transmitir, salvar e compartilhar → Instalar página como app.");
+    return installHelp("Abra o menu do navegador e escolha “Instalar app” ou “Adicionar à tela inicial”.");
+  }
+  function installHelp(message){
+    const x=document.createElement("div");
+    x.className="modalBg";
+    x.innerHTML=`<div class="modal"><h3>Instalar LunaChat</h3><p style="color:var(--muted);line-height:1.55;margin:6px 0 4px">${esc(message)}</p><p style="color:#7f899e;font-size:12px;line-height:1.45">Depois de instalado, ele abre em uma janela própria, como aplicativo.</p><div class="modalBtns"><button id="okInstall">Entendi</button></div></div>`;
+    document.body.appendChild(x);
+    x.querySelector("#okInstall").onclick=()=>x.remove();
+  }
 window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredInstallPrompt=e;refreshInstallButton()});
 window.addEventListener("appinstalled",()=>{deferredInstallPrompt=null;refreshInstallButton();toast("LunaChat instalado ✨")});
 function toast(t){toastEl.textContent=t;toastEl.classList.add("on");clearTimeout(toastEl.t);toastEl.t=setTimeout(()=>toastEl.classList.remove("on"),2500)}
-function login(msg=""){app.innerHTML=`<main class="login"><section class="card"><div class="brand"><div class="logo">☾</div><div><h1>LunaChat</h1><p>Seu espaço privado.</p></div></div><h2>Entrar na sua conversa</h2><p>Digite seu código pessoal. Você verá somente as conversas liberadas para ele.</p><form id="f"><div class="field">🔒<input name="code" type="password" autocomplete="current-password" placeholder="LUNA-••••-••••-••••" required><button type="button" id="eye">👁</button></div><div class="err" id="err">${esc(msg)}</div><button class="primary" id="go">Entrar no LunaChat</button></form><div class="note">🔒 Ambiente fechado · acesso somente por código</div><button type="button" class="primary installLogin" id="installLogin" hidden>⬇ Instalar LunaChat</button></section></main>`;$("#eye").onclick=()=>{const i=$("#f").code;i.type=i.type==="password"?"text":"password"};$("#f").onsubmit=doLogin;const il=$("#installLogin");if(il)il.onclick=installApp;refreshInstallButton()}
+function login(msg=""){app.innerHTML=`<main class="login"><section class="card"><div class="brand"><div class="logo">☾</div><div><h1>LunaChat</h1><p>Seu espaço privado.</p></div></div><h2>Entrar na sua conversa</h2><p>Digite seu código pessoal. Você verá somente as conversas liberadas para ele.</p><form id="f"><div class="field">🔒<input name="code" type="password" autocomplete="current-password" placeholder="LUNA-••••-••••-••••" required><button type="button" id="eye">👁</button></div><div class="err" id="err">${esc(msg)}</div><button class="primary" id="go">Entrar no LunaChat</button></form><div class="note">🔒 Ambiente fechado · acesso somente por código</div><button type="button" class="primary installLogin" id="installLogin" hidden>⬇ Instalar aplicativo</button></section></main>`;$("#eye").onclick=()=>{const i=$("#f").code;i.type=i.type==="password"?"text":"password"};$("#f").onsubmit=doLogin;const il=$("#installLogin");if(il)il.onclick=installApp;refreshInstallButton()}
 async function doLogin(e){e.preventDefault();if(S.busy)return;const code=e.currentTarget.code.value.trim().toUpperCase(),go=$("#go"),er=$("#err");if(code.length<12)return;S.busy=true;go.disabled=true;go.textContent="Entrando…";er.textContent="";try{const r=await fetch(URL+"/functions/v1/lunachat-login",{method:"POST",headers:{"content-type":"application/json",apikey:KEY},body:JSON.stringify({code})}),j=await r.json();if(!r.ok||!j.access_token)throw Error(j.error||"Código inválido.");const q=await sb.auth.setSession({access_token:j.access_token,refresh_token:j.refresh_token});if(q.error)throw q.error;await boot()}catch(x){er.textContent=x.message||"Não foi possível entrar."}finally{S.busy=false;if(go){go.disabled=false;go.textContent="Entrar no LunaChat"}}}
 async function boot(){cleanup();const{data:{session}}=await sb.auth.getSession();if(!session)return login();const m=await sb.from("participants").select("id,display_name,auth_user_id").eq("auth_user_id",session.user.id).maybeSingle();if(m.error||!m.data){await sb.auth.signOut();return login("Sessão inválida.")}S.me=m.data;const r=await sb.from("rooms").select("id,name,kind").order("created_at");S.rooms=r.data||[];shell()}
 function shell(){app.innerHTML=`<div class="app" id="chatapp"><aside><div class="sideHead"><div class="mini"><b>☾</b>LunaChat</div><div class="sideActions"><button class="icon installBtn" id="install" hidden title="Instalar LunaChat">⬇</button><button class="icon" id="out" title="Sair">↪</button></div></div><div class="profile"><div class="avatar">${esc(initials(S.me.display_name))}</div><div><strong>${esc(S.me.display_name)}</strong><small>● conectado</small></div><button class="icon" id="rename">✎</button></div><div class="section">Conversas</div><div class="rooms" id="rooms"></div><div class="foot">🔒 Privado · 8 pessoas</div></aside><section class="pane" id="pane"><div class="welcome"><div><div style="font-size:55px">☾</div><h2>Bem-vindo ao LunaChat</h2><p>Escolha uma conversa.</p></div></div></section></div>`;$("#out").onclick=logout;$("#rename").onclick=rename;const ib=$("#install");if(ib)ib.onclick=installApp;refreshInstallButton();renderRooms()}
