@@ -69,7 +69,7 @@ export async function POST(request: Request) {
 
     if (metadata.locked && role !== "host" && !(canResume && alreadyConnected)) {
       return NextResponse.json(
-        { error: "Esta sala está temporariamente fechada para novas entradas." },
+        { error: "Não autorizado, sala trancada." },
         { status: 423 },
       );
     }
