@@ -18,7 +18,7 @@ export default function manifest(): MetadataRoute.Manifest {
         src: "/icons/lumacall-192.png",
         sizes: "192x192",
         type: "image/png",
-        purpose: "any maskable",
+        purpose: "any",
       },
       {
         src: "/icons/lumacall-512.png",
