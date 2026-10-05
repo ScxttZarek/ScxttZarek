@@ -127,8 +127,8 @@ replace(
 
 replace(
   "components/call/call-room.tsx",
-  '<main className={cn("lumacall-call-stage h-full p-3 transition-[padding] duration-200", panelOpen ? "pr-[362px]" : "pr-3")}>',
-  '<main className={cn("lumacall-call-stage h-full p-2 transition-[padding] duration-200 sm:p-3", panelOpen ? "sm:pr-[362px]" : "sm:pr-3")}>'
+  '<main className={cn("lumacall-call-stage min-h-0 flex-1 p-3 transition-[padding] duration-200", panelOpen ? "pr-[362px]" : "pr-3")}>',
+  '<main className={cn("lumacall-call-stage min-h-0 flex-1 p-2 transition-[padding] duration-200 sm:p-3", panelOpen ? "sm:pr-[362px]" : "sm:pr-3")}>'
 );
 
 replace(
