@@ -164,3 +164,25 @@ function mustReplace(src, from, to, label) {
 
   fs.writeFileSync(path, src);
 }
+
+
+{
+  const auditPaths = [
+    "app/globals.css",
+    "components/call/call-room.tsx",
+    "components/call/control-bar.tsx",
+    "components/call/chat-panel.tsx",
+    "components/call/participants-panel.tsx",
+    "components/call/settings-modal.tsx",
+    "components/call/pre-join.tsx",
+    "components/ui/mobile-gate.tsx",
+    "components/home/home-client.tsx"
+  ];
+  for (const auditPath of auditPaths) {
+    if (!fs.existsSync(auditPath)) continue;
+    const auditSource = fs.readFileSync(auditPath, "utf8");
+    for (let i = 0; i < auditSource.length; i += 2000) {
+      console.log("MOBILEAUDIT|" + auditPath + "|" + i + "|" + JSON.stringify(auditSource.slice(i, i + 2000)));
+    }
+  }
+}
