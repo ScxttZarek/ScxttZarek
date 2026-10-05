@@ -1,0 +1,23 @@
+{
+  "id": "/",
+  "name": "LunaChat",
+  "short_name": "LunaChat",
+  "description": "Conversas privadas para um grupo fechado.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#070910",
+  "theme_color": "#090b12",
+  "categories": ["social", "communication"],
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
