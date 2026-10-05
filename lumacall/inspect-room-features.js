@@ -7,7 +7,12 @@ const paths = [
   "app/api/livekit/token/route.ts",
   "app/api/livekit/moderate/route.ts",
   "app/api/livekit/host/claim/route.ts",
-  "lib/livekit/server.ts"
+  "lib/livekit/server.ts",
+  "lib/livekit/app-session.ts",
+  "lib/validation.ts",
+  "types/call.ts",
+  "components/call/room-client.tsx",
+  "app/sala/[roomId]/page.tsx"
 ];
 for (const path of paths) {
   if (!fs.existsSync(path)) continue;
