@@ -194,7 +194,16 @@ if (!css.includes("/* LunaCall mobile v1 */")) {
   }
 
   .control-bar {
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 80;
+    width: 100%;
     padding-bottom: max(0px, env(safe-area-inset-bottom));
+    background: rgba(10, 11, 13, .96);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
   }
 
   .control-bar-inner {
@@ -203,8 +212,18 @@ if (!css.includes("/* LunaCall mobile v1 */")) {
     scrollbar-width: none;
   }
 
+  .lumacall-call-stage {
+    padding-bottom: calc(82px + env(safe-area-inset-bottom)) !important;
+  }
+
   .lumacall-chat-panel {
     max-width: calc(100vw - 1rem);
+    bottom: calc(78px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .mobile-call {
+    min-height: 100dvh;
+    padding-bottom: 0;
   }
 }
 
@@ -245,6 +264,7 @@ if (!css.includes("/* LunaCall mobile v1 */")) {
 
   .control-bar {
     height: calc(66px + env(safe-area-inset-bottom));
+    min-height: calc(66px + env(safe-area-inset-bottom));
     padding-left: 8px;
     padding-right: 8px;
   }
