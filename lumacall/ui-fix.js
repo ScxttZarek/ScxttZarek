@@ -32,7 +32,7 @@ if (start === -1 || end === -1) {
 }
 
 const newMain = [
-  '      <main className={cn("lumacall-call-stage h-full p-3 transition-[padding] duration-200", panelOpen ? "pr-[362px]" : "pr-3")}>',
+  '      <main className={cn("lumacall-call-stage min-h-0 flex-1 p-3 transition-[padding] duration-200", panelOpen ? "pr-[362px]" : "pr-3")}>',
   '        <div className="relative h-full overflow-y-auto">',
   '          <div className="mx-auto grid min-h-full w-full max-w-6xl content-center gap-3 py-1" style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}>',
   '            {participants.map((participant) => {',
