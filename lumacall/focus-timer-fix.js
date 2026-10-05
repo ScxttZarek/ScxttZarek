@@ -186,3 +186,21 @@ function mustReplace(src, from, to, label) {
     }
   }
 }
+
+
+{
+  function around(path, needle, before = 500, after = 1500) {
+    const source = fs.readFileSync(path, "utf8");
+    const index = source.indexOf(needle);
+    console.log("MCHECK|" + path + "|" + needle + "|" + JSON.stringify(index >= 0 ? source.slice(Math.max(0,index-before), index+after) : "NOT_FOUND"));
+  }
+  around("app/globals.css", "@media (max-width: 860px)", 200, 3400);
+  around("app/globals.css", "@media (max-width: 560px)", 200, 2500);
+  around("components/home/home-client.tsx", "<header", 200, 1800);
+  around("components/call/pre-join.tsx", "return (", 300, 3200);
+  around("components/call/settings-modal.tsx", "return (", 300, 3000);
+  around("components/ui/mobile-gate.tsx", "return", 200, 1800);
+  around("components/call/call-room.tsx", "participant-grid", 1000, 2600);
+  around("components/call/call-room.tsx", "const onKey", 300, 1000);
+  around("components/call/participants-panel.tsx", "return <aside", 100, 2200);
+}
