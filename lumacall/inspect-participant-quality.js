@@ -1,0 +1,1 @@
+const fs=require("fs");const p="components/call/participant-tile.tsx";const s=fs.readFileSync(p,"utf8");for(let i=0;i<s.length;i+=1800)console.log("PTILE|"+i+"|"+JSON.stringify(s.slice(i,i+1800)));
