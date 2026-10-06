@@ -1,4 +1,4 @@
-const CACHE="lunachat-shell-v4";
+const CACHE="lunachat-shell-v5";
 const CORE=["/","/index.html","/manifest.webmanifest","/icon.svg"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));
