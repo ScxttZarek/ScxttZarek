@@ -93,3 +93,6 @@ function mustReplace(source, from, to, label) {
 
   write(path, src);
 }
+
+
+require("./aldron-exclusive-fix.js");
