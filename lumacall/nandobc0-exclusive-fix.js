@@ -165,3 +165,35 @@ for (const path of ["components/home/home-client.tsx", "components/call/pre-join
   src = mustReplace(src, editorBlock, sohlarBlock, "tag na transmissão");
   write(path, src);
 }
+
+
+// Avatar do Nando: anel dourado/âmbar em todos os pontos em que o perfil aparece.
+{
+  const path = "components/call/participant-tile.tsx";
+  let source = read(path);
+  source = source.replace(
+    'badge === "creator" ? "ring-2 ring-violet-400/60 shadow-violet-950/35" : "ring-2 ring-cyan-400/60 shadow-cyan-950/35"',
+    'badge === "creator" ? "ring-2 ring-violet-400/60 shadow-violet-950/35" : badge === "imperio_sohlar" ? "ring-2 ring-amber-400/60 shadow-amber-950/35" : "ring-2 ring-cyan-400/60 shadow-cyan-950/35"',
+  );
+  write(path, source);
+}
+
+{
+  const path = "components/call/participants-panel.tsx";
+  let source = read(path);
+  source = source.replace(
+    'meta(participant).badge === "creator" ? "size-10 shrink-0 rounded-full object-cover ring-2 ring-violet-400/45" : "size-10 shrink-0 rounded-full object-cover ring-2 ring-cyan-400/45"',
+    'meta(participant).badge === "creator" ? "size-10 shrink-0 rounded-full object-cover ring-2 ring-violet-400/45" : meta(participant).badge === "imperio_sohlar" ? "size-10 shrink-0 rounded-full object-cover ring-2 ring-amber-400/45" : "size-10 shrink-0 rounded-full object-cover ring-2 ring-cyan-400/45"',
+  );
+  write(path, source);
+}
+
+{
+  const path = "components/call/chat-panel.tsx";
+  let source = read(path);
+  source = source.replace(
+    'badge === "creator" ? "ring-violet-400/45" : "ring-cyan-400/45"',
+    'badge === "creator" ? "ring-violet-400/45" : badge === "imperio_sohlar" ? "ring-amber-400/45" : "ring-cyan-400/45"',
+  );
+  write(path, source);
+}
