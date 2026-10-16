@@ -216,3 +216,35 @@ for (const path of ["components/home/home-client.tsx", "components/call/pre-join
   src = mustReplace(src, block, replacement, "tag na transmissão");
   write(path, src);
 }
+
+
+// Avatar do Aldron: anel preto/branco para combinar com BOLACHAOREO.
+{
+  const path = "components/call/participant-tile.tsx";
+  let source = read(path);
+  source = source.replace(
+    'badge === "creator" ? "ring-2 ring-violet-400/60 shadow-violet-950/35" : badge === "imperio_sohlar" ? "ring-2 ring-amber-400/60 shadow-amber-950/35" : "ring-2 ring-cyan-400/60 shadow-cyan-950/35"',
+    'badge === "creator" ? "ring-2 ring-violet-400/60 shadow-violet-950/35" : badge === "imperio_sohlar" ? "ring-2 ring-amber-400/60 shadow-amber-950/35" : badge === "bolacha_oreo" ? "ring-2 ring-zinc-200/70 shadow-black/45" : "ring-2 ring-cyan-400/60 shadow-cyan-950/35"',
+  );
+  write(path, source);
+}
+
+{
+  const path = "components/call/participants-panel.tsx";
+  let source = read(path);
+  source = source.replace(
+    'badgeFor(participant) === "creator" ? "size-10 shrink-0 rounded-full object-cover ring-2 ring-violet-400/45" : badgeFor(participant) === "imperio_sohlar" ? "size-10 shrink-0 rounded-full object-cover ring-2 ring-amber-400/45" : "size-10 shrink-0 rounded-full object-cover ring-2 ring-cyan-400/45"',
+    'badgeFor(participant) === "creator" ? "size-10 shrink-0 rounded-full object-cover ring-2 ring-violet-400/45" : badgeFor(participant) === "imperio_sohlar" ? "size-10 shrink-0 rounded-full object-cover ring-2 ring-amber-400/45" : badgeFor(participant) === "bolacha_oreo" ? "size-10 shrink-0 rounded-full object-cover ring-2 ring-zinc-200/60" : "size-10 shrink-0 rounded-full object-cover ring-2 ring-cyan-400/45"',
+  );
+  write(path, source);
+}
+
+{
+  const path = "components/call/chat-panel.tsx";
+  let source = read(path);
+  source = source.replace(
+    'badge === "creator" ? "ring-violet-400/45" : badge === "imperio_sohlar" ? "ring-amber-400/45" : "ring-cyan-400/45"',
+    'badge === "creator" ? "ring-violet-400/45" : badge === "imperio_sohlar" ? "ring-amber-400/45" : badge === "bolacha_oreo" ? "ring-zinc-200/60" : "ring-cyan-400/45"',
+  );
+  write(path, source);
+}
