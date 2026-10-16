@@ -67,3 +67,6 @@ function mustReplace(source, from, to, label) {
 
   write(path, src);
 }
+
+
+require("./aldron-direct-avatar-fix.js");
