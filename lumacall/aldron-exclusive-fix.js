@@ -248,3 +248,6 @@ for (const path of ["components/home/home-client.tsx", "components/call/pre-join
   );
   write(path, source);
 }
+
+
+require("./aldron-avatar-fallback-fix.js");
