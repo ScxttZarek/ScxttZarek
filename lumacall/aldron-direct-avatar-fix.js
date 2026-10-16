@@ -40,3 +40,6 @@ function mustReplace(source, from, to, label) {
   );
   write(path, src);
 }
+
+
+require("./shine-avatar-fix.js");
