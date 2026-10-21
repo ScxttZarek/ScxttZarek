@@ -1,0 +1,28 @@
+
+/* LumaCall Lobby Chat */
+.lc-general-live {
+  position:absolute;inset:52px 0 0 0;
+  width:100%;height:calc(100% - 52px);
+  overflow:hidden;z-index:5;
+}
+.lc-room-content.lc-room-general .lumacall-chat-panel {display:none !important;}
+.lc-general-chat {height:100%;min-height:0;}
+.lc-general-chat textarea {box-shadow:none !important;border:0 !important;outline:0 !important;}
+.lc-general-badge {padding:2px 7px;border-radius:6px;border:1px solid #555565;font-size:9px;font-weight:800;letter-spacing:.045em;white-space:nowrap;}
+.lc-general-badge-creator {background:#302742;color:#ded0ff;border-color:#5c477e;}
+.lc-general-badge-editor {background:#1b3239;color:#a8e3ef;border-color:#36646d;}
+.lc-general-badge-imperio_sohlar {background:#3a2b19;color:#f6d49d;border-color:#71512a;}
+.lc-general-badge-princesa_tess {background:#392537;color:#fac9ea;border-color:#754366;}
+.lc-general-badge-bolacha_oreo {background:#292b31;color:#f1f0f4;border-color:#595c65;}
+.lc-general-message {min-width:0;}
+@media(max-width:560px){
+ .lc-lobby-sidebar {width:100px !important;}
+ .lc-lobby-sidebar .lc-sidebar-entry {font-size:10px;gap:4px;padding:10px 6px;}
+ .lc-lobby-sidebar > div:first-child{padding:12px 7px;}
+ .lc-lobby-sidebar > div:first-child p{font-size:9px;}
+ .lc-lobby-sidebar button {font-size:10px;}
+ .lc-lobby-sidebar .lc-sidebar-entry svg {display:none;}
+ .lc-general-message {gap:9px;padding:9px 0;}
+ .lc-general-history {padding:12px !important;}
+ .lc-general-chat h2{font-size:20px;}
+}
