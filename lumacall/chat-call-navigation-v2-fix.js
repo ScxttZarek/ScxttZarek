@@ -17,6 +17,5 @@ const cssPath="app/globals.css";
 let source=fs.readFileSync(cssPath,"utf8");
 const theme="\n/* LumaCall Chat and Voice Navigation v2 */\n.lc-call-controls {width:100%;flex-shrink:0;}\n.lc-call .lc-mini-voice {display:none;}\n@media (min-width:861px) {\n  .lc-call .lc-call-controls.lc-controls-minimized {display:none!important;}\n  .lc-call .lc-rooms-sidebar .lc-mini-voice {display:block;}\n}\n@media (max-width:860px) {\n  .lc-call .lc-mini-voice {display:none!important;}\n  .lc-call .lc-call-controls.lc-controls-minimized {display:block!important;}\n}\n";
 if(source.includes("/* LumaCall Chat and Voice Navigation v2 */"))throw Error("Already applied");
-fs.writeFileSync(cssPath,source+"
-"+theme);
+fs.writeFileSync(cssPath,source+String.fromCharCode(10)+theme);
 console.log("LC_NAV_V2=mini-panel and full-height general chat");
