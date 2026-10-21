@@ -5,11 +5,19 @@ import { useRouter } from "next/navigation";
 import { ArrowUpRight, Plus } from "lucide-react";
 import { Brand } from "@/components/ui/brand";
 import { NameModal } from "@/components/ui/name-modal";
+import { DeviceAccess, hasMediaSetup } from "@/components/ui/device-access";
 import { createRoomCode } from "@/lib/utils";
 
 export function HomeClient() {
   const router = useRouter();
   const [nameOpen, setNameOpen] = useState(false);
+  const [accessOpen, setAccessOpen] = useState(false);
+  function enterRoom() {
+    setAccessOpen(false);
+    router.push("/sala/" + createRoomCode());
+  }
+
+  if (accessOpen) return <DeviceAccess onComplete={enterRoom} />;
 
   return (
     <main className="lc-start flex min-h-dvh flex-col bg-[#090b0e] px-5">
@@ -42,7 +50,8 @@ export function HomeClient() {
         onClose={() => setNameOpen(false)}
         onSave={() => {
           setNameOpen(false);
-          router.push("/sala/" + createRoomCode());
+          if (hasMediaSetup()) enterRoom();
+          else setAccessOpen(true);
         }}
       />
     </main>

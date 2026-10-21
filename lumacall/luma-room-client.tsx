@@ -4,10 +4,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LiveKitRoom } from "@livekit/components-react";
 import { Room, RoomEvent, RemoteParticipant } from "livekit-client";
-import { ArrowLeft, Copy, Headphones, Hash } from "lucide-react";
+import { Copy, Headphones, Hash, LoaderCircle } from "lucide-react";
 import { Brand } from "@/components/ui/brand";
 import { DISPLAY_NAME_KEY, RESERVED_NAME_PROOF_KEY, NameModal } from "@/components/ui/name-modal";
-import { PreJoin } from "@/components/call/pre-join";
+import { DeviceAccess, hasMediaSetup, MEDIA_MIC_KEY } from "@/components/ui/device-access";
+import { reservedAvatarForBadge } from "@/lib/reserved-profile";
 import { CallRoom } from "@/components/call/call-room";
 import { LumaGeneralChat, GeneralMessage } from "@/components/call/luma-general-chat";
 import { MobileGate } from "@/components/ui/mobile-gate";
@@ -16,7 +17,18 @@ import type { AppSession, PreJoinPreferences } from "@/types/call";
 
 const sessionKey = (roomId: string) => "lumacall.session." + roomId;
 const topic = "lumacall-general-v1";
-type Phase = "lobby" | "prejoin" | "connecting" | "call";
+type Phase = "lobby" | "connecting" | "call";
+
+
+function roomMemberAvatar(badge?: string, name?: string) {
+  const normalized = name?.toLocaleLowerCase("pt-BR");
+  if (badge === "princesa_tess" || normalized === "shine") return "/avatars/shine.webp";
+  if (badge === "bolacha_oreo" || normalized === "aldron") return "/avatars/aldron.webp";
+  if (badge === "creator" || normalized === "ohenrique") return reservedAvatarForBadge("creator", name);
+  if (badge === "editor" || normalized === "userqubo") return reservedAvatarForBadge("editor", name);
+  if (badge === "imperio_sohlar" || normalized === "nandobc0") return reservedAvatarForBadge("imperio_sohlar", name);
+  return null;
+}
 
 function badgeOf(metadata?: string) {
   try {const badge = JSON.parse(metadata||"{}").badge;return typeof badge==="string"?badge:undefined;}
@@ -25,6 +37,7 @@ function badgeOf(metadata?: string) {
 
 export function RoomClient({ roomId }: { roomId: string }) {
   const [phase,setPhase]=useState<Phase>("lobby");
+  const [mediaSetup,setMediaSetup]=useState<"loading" | "needed" | "ready">("loading");
   const [preferences,setPreferences]=useState<PreJoinPreferences|null>(null);
   const [token,setToken]=useState("");
   const [serverUrl,setServerUrl]=useState("");
@@ -39,6 +52,8 @@ export function RoomClient({ roomId }: { roomId: string }) {
   const [callMembers,setCallMembers]=useState<{name:string;badge?:string}[]>([]);
   const lobbyRef=useRef<Room|null>(null);
 
+  useEffect(()=>setMediaSetup(hasMediaSetup()?"ready":"needed"),[]);
+
   useEffect(()=>{
     const saved=sanitizeDisplayName(localStorage.getItem(DISPLAY_NAME_KEY)||"");
     const savedProof=localStorage.getItem(RESERVED_NAME_PROOF_KEY)||"";
@@ -48,7 +63,7 @@ export function RoomClient({ roomId }: { roomId: string }) {
   },[]);
 
   useEffect(()=>{
-    if(!displayName)return;
+    if(!displayName || mediaSetup!=="ready")return;
     let canceled=false;
     let active:Room|null=null;
     setLobbyLoading(true);
@@ -82,7 +97,7 @@ export function RoomClient({ roomId }: { roomId: string }) {
     }
     void connect();
     return ()=>{canceled=true;if(lobbyRef.current===active)lobbyRef.current=null;void active?.disconnect();};
-  },[roomId,displayName,proof]);
+  },[roomId,displayName,proof,mediaSetup]);
 
   useEffect(()=>{
     if(phase!=="lobby")return;
@@ -129,9 +144,18 @@ export function RoomClient({ roomId }: { roomId: string }) {
       const nextSession:AppSession={token:payload.appSession,role:payload.role,identity:payload.identity,locked:Boolean(payload.locked)};
       sessionStorage.setItem(sessionKey(roomId),nextSession.token);
       setSession(nextSession);setToken(payload.token);setServerUrl(payload.serverUrl);setPhase("call");
-    }catch(reason){setError(reason instanceof Error?reason.message:"Não foi possível entrar na chamada.");setPhase("prejoin");}
+    }catch(reason){setError(reason instanceof Error?reason.message:"Não foi possível entrar na chamada.");setPhase("lobby");}
+  }
+  function joinInstantly(){
+    const clean=sanitizeDisplayName(displayName);
+    if(clean.length<2){setNameOpen(true);return;}
+    if(phase!=="lobby")return;
+    void join({displayName:clean,reservedNameProof:proof||undefined,micEnabled:localStorage.getItem(MEDIA_MIC_KEY)==="1",cameraEnabled:false});
   }
   function updateSession(next:AppSession){sessionStorage.setItem(sessionKey(roomId),next.token);setSession(next);}
+
+  if(mediaSetup==="loading")return <main className="grid min-h-dvh place-items-center bg-[#090b0f] text-sm text-zinc-400">Preparando sala...</main>;
+  if(mediaSetup==="needed" && !nameOpen && displayName)return <DeviceAccess onComplete={()=>setMediaSetup("ready")} />;
 
   return <><MobileGate /><div className="desktop-shell h-dvh overflow-hidden">
     {phase==="lobby"&&(
@@ -146,12 +170,12 @@ export function RoomClient({ roomId }: { roomId: string }) {
             <div className="flex-1 px-2 py-4">
               <div className="lc-sidebar-entry lc-selected flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold"><Hash className="size-4"/>geral</div>
               <p className="mt-6 px-3 pb-2 text-[10px] font-bold uppercase tracking-[.13em] text-zinc-500">Chamadas</p>
-              <button onClick={()=>setPhase("prejoin")} className="lc-sidebar-entry flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-zinc-300"><Headphones className="size-4 shrink-0"/>Entrar na chamada</button>
+              <button onClick={joinInstantly} className="lc-sidebar-entry flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-zinc-300"><Headphones className="size-4 shrink-0"/>Entrar na chamada</button>
               {callMembers.length>0&&<div className="mt-3 space-y-1 px-2">
                 {callMembers.map((member,index)=>(
-                  <button type="button" key={member.name+index} onClick={()=>setPhase("prejoin")} title={"Entrar na chamada com "+member.name} className="lc-member-row flex w-full min-w-0 items-center gap-2 rounded-lg px-1 py-1.5 text-left">
+                  <button type="button" key={member.name+index} onClick={joinInstantly} title={"Entrar na chamada com "+member.name} className="lc-member-row flex w-full min-w-0 items-center gap-2 rounded-lg px-1 py-1.5 text-left">
                     <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full bg-[#2d303b] text-[10px] font-bold text-zinc-200">
-                      {member.badge==="princesa_tess"?<img src="/avatars/shine.webp" alt="" className="size-full object-cover"/>:member.badge==="bolacha_oreo"?<img src="/avatars/aldron.webp" alt="" className="size-full object-cover"/>:member.name.slice(0,1).toUpperCase()}
+                      {roomMemberAvatar(member.badge,member.name)?<img src={roomMemberAvatar(member.badge,member.name)!} alt="" className="size-full object-cover"/>:member.name.slice(0,1).toUpperCase()}
                     </span>
                     <span className="min-w-0 flex-1 truncate text-[10px] text-zinc-400">{member.name}</span>
                   </button>
@@ -159,19 +183,17 @@ export function RoomClient({ roomId }: { roomId: string }) {
               </div>}
 
             </div>
-            <div className="border-t border-white/[.07] p-3"><button type="button" onClick={()=>setPhase("prejoin")} className="focus-ring w-full rounded-xl bg-[#bbb6f6] px-3 py-3 text-xs font-bold text-[#101118] hover:bg-[#d0ccff]">Entrar na chamada</button></div>
+            <div className="border-t border-white/[.07] p-3"><button type="button" onClick={joinInstantly} className="focus-ring w-full rounded-xl bg-[#bbb6f6] px-3 py-3 text-xs font-bold text-[#101118] hover:bg-[#d0ccff]">Entrar na chamada</button></div>
           </aside>
           <main className="flex min-w-0 flex-1 flex-col">
+            {error&&<div role="alert" className="border-b border-rose-400/20 bg-[#2d1b24] px-5 py-2 text-xs text-rose-200">{error}</div>}
             <div className="flex h-[52px] shrink-0 items-center gap-2 border-b border-white/[.08] bg-[#15171c] px-5 text-xs font-bold text-zinc-100"><Hash className="size-4 text-zinc-500"/> geral</div>
             <div className="min-h-0 flex-1">{generalChat}</div>
           </main>
         </div>
       </div>
     )}
-    {(phase==="prejoin"||phase==="connecting")&&<>
-      <div className="absolute right-4 top-[76px] z-20"><button type="button" onClick={()=>{if(phase!=="connecting")setPhase("lobby")}} disabled={phase==="connecting"} className="focus-ring flex items-center gap-1.5 rounded-xl bg-[#232631] px-3 py-2 text-xs text-zinc-300 disabled:opacity-40"><ArrowLeft className="size-3.5"/>Voltar ao chat</button></div>
-      <PreJoin roomId={roomId} onJoin={join} busy={phase==="connecting"} error={error}/>
-    </>}
+    {phase==="connecting"&&<main className="flex h-full flex-col items-center justify-center gap-4 bg-[#0b0d11] text-zinc-200"><LoaderCircle className="size-8 animate-spin text-[#bdb8f9]"/><p className="text-sm font-semibold">Conectando à chamada...</p><p className="text-xs text-zinc-500">Seu nome e suas permissões já estão prontos.</p></main>}}
     {phase==="call"&&preferences&&session&&(
       <LiveKitRoom token={token} serverUrl={serverUrl} connect audio={audioOptions} video={videoOptions}
         options={{adaptiveStream:true,dynacast:true,disconnectOnPageLeave:true}}
