@@ -1,0 +1,326 @@
+/* LumaCall Obsidian UI — dark sólido, sem gradientes, desktop/mobile */
+:root {
+  color-scheme: dark;
+  --lc-canvas: #090b0f;
+  --lc-shell: #0e1015;
+  --lc-panel: #14171d;
+  --lc-raised: #1b1f27;
+  --lc-hover: #232833;
+  --lc-stroke: rgba(209, 216, 237, .105);
+  --lc-stroke-strong: rgba(209, 216, 237, .19);
+  --lc-text: #f1f2f7;
+  --lc-muted: #9b9eac;
+  --lc-accent: #b5b0f5;
+}
+html { background-color: var(--lc-canvas) !important; }
+body {
+  color: var(--lc-text);
+  background: var(--lc-canvas) !important;
+  background-image: none !important;
+}
+body::before, body::after { background-image: none !important; }
+::selection { background: #55517b; color: white; }
+[class*="bg-gradient-"] { background-image: none !important; }
+.lumacall-home::before { display: none !important; }
+.lumacall-home .soft-grid { opacity: .13 !important; }
+.lumacall-home,
+.lc-prejoin,
+.lc-call,
+.desktop-shell {
+  background: var(--lc-canvas) !important;
+  background-image: none !important;
+}
+.lumacall-home > *,
+.lc-prejoin > * { position: relative; z-index: 1; }
+.glass {
+  background: var(--lc-panel) !important;
+  background-image: none !important;
+  border: 1px solid var(--lc-stroke) !important;
+  box-shadow: 0 14px 42px rgba(0,0,0,.19) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.focus-ring:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--lc-accent) !important;
+  outline-offset: 3px;
+}
+button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button { touch-action: manipulation; }
+input, select, textarea {
+  caret-color: #bbb6ff;
+  accent-color: #aaa4f1;
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+textarea, select {
+  border-color: var(--lc-stroke-strong);
+}
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+textarea:focus, select:focus {
+  border-color: rgba(181,176,245,.55);
+  box-shadow: 0 0 0 3px rgba(181,176,245,.08);
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 12px; background: #454956; background-clip: padding-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Home: superfícies alinhadas, contraste e ações claras */
+.lumacall-home header,
+.lc-prejoin header {
+  border-bottom: 1px solid rgba(216,219,234,.06);
+}
+.lumacall-home h1 { color: #f5f6fa; letter-spacing: -.045em; text-wrap: balance; }
+.lumacall-home p { color: #b0b3c0; }
+.lumacall-home-card {
+  border: 1px solid var(--lc-stroke-strong) !important;
+  border-radius: 23px !important;
+  background: #151820 !important;
+  background-image: none !important;
+  box-shadow: 0 18px 65px rgba(0,0,0,.30) !important;
+}
+.lumacall-home-card > div { border-radius: 18px; }
+.home-create-btn {
+  color: #12131d !important;
+  border: 1px solid #b7b1f0 !important;
+  background: #beb9f8 !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+  font-weight: 750;
+}
+.home-create-btn:hover {
+  background: #d0ccff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+.home-create-btn:active { background: #a7a1e9 !important; }
+.home-header-actions { min-width: 0; }
+.home-profile-button {
+  background: #1b1e26 !important;
+  border-color: var(--lc-stroke-strong) !important;
+  color: #e7e8ef;
+}
+.home-profile-button:hover { background: #262a34 !important; }
+.lumacall-home :is(a,button).rounded-xl,
+.lc-prejoin :is(a,button).rounded-xl { transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease; }
+
+/* Pré-entrada: leitura simples, preview bem delimitado */
+.lc-prejoin .glass {
+  background: #14171e !important;
+  border-radius: 22px !important;
+  border-color: var(--lc-stroke-strong) !important;
+  box-shadow: 0 14px 44px rgba(0,0,0,.22) !important;
+}
+.lc-prejoin form { align-items: stretch; }
+.lc-prejoin h1, .lc-prejoin h2 { color: #f3f4f8; }
+.lc-prejoin video {
+  display: block;
+  object-fit: cover;
+  background: #07080b;
+  border-radius: inherit;
+}
+.prejoin-room-code {
+  background: #1b1e25 !important;
+  border-color: var(--lc-stroke-strong) !important;
+  color: #d8d9e2 !important;
+}
+.lc-prejoin :is(input,select) { background-color: #101319 !important; }
+
+/* Sala: painel da transmissão domina, áreas auxiliares não distraem */
+.lc-call {
+  background: #0b0d11 !important;
+}
+.call-header {
+  background: #111319 !important;
+  border-bottom: 1px solid var(--lc-stroke) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,.025);
+}
+.call-header button {
+  border-color: var(--lc-stroke) !important;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+.call-header button:hover { background-color: #262a33 !important; }
+.call-ad-slot { background: #16181e !important; border-color: var(--lc-stroke) !important; }
+.lumacall-call-stage {
+  background: #0b0d11 !important;
+  background-image: none !important;
+}
+.participant-grid { align-items: stretch; }
+.lc-participant-tile {
+  background: #181b22 !important;
+  border: 1px solid var(--lc-stroke) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 7px 22px rgba(0,0,0,.18) !important;
+}
+.lc-participant-tile.speaking,
+.lc-participant-tile:has(.speaking) {
+  border-color: rgba(155,147,237,.62) !important;
+}
+.lc-participant-tile:hover { border-color: rgba(207,211,230,.21) !important; }
+.lc-participant-tile img[src^="/avatars/"],
+.lumacall-participants-panel img[src^="/avatars/"],
+.lumacall-chat-panel img[src^="/avatars/"] {
+  display: block;
+  object-fit: cover;
+  background-color: #181b22;
+  border: 2px solid rgba(255,255,255,.09);
+}
+.lc-participant-tile img[src^="/avatars/"] {
+  box-shadow: 0 0 0 5px rgba(255,255,255,.025), 0 14px 32px rgba(0,0,0,.28);
+}
+.lc-participant-tile .group, .lc-participant-tile button {
+  transition-property: background-color, border-color, color;
+}
+.lc-screen-share {
+  border-radius: 17px !important;
+  border-color: var(--lc-stroke-strong) !important;
+  background: #07090d !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,.22) !important;
+}
+.lc-screen-share > div:first-child {
+  background: #151820 !important;
+  border-bottom-color: var(--lc-stroke) !important;
+}
+.lc-screen-share video { display: block; background: #07080b; }
+.lc-screen-share:fullscreen { border: 0 !important; border-radius: 0 !important; }
+
+/* Etiquetas especiais: design de selo, sem neon nem gradiente */
+:is(.lc-participant-tile,.lumacall-chat-panel,.lumacall-participants-panel,.lc-screen-share)
+  :is([title="Criador"],[title="Editor"],[title="Império Sohlar"],[title="Princesa Tess"],[title="BolachaOreo"]) {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  white-space: nowrap;
+  border-width: 1px !important;
+  border-style: solid !important;
+  border-radius: 7px !important;
+  padding: 3px 7px !important;
+  font-size: 9px !important;
+  font-weight: 750 !important;
+  letter-spacing: .055em;
+  line-height: 1.3;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+[title="Criador"] { background: #302742 !important; color: #ded0ff !important; border-color: #5c477e !important; }
+[title="Editor"] { background: #1b3239 !important; color: #a8e3ef !important; border-color: #36646d !important; }
+[title="Império Sohlar"] { background: #3a2b19 !important; color: #f6d49d !important; border-color: #71512a !important; }
+[title="Princesa Tess"] { background: #392537 !important; color: #fac9ea !important; border-color: #754366 !important; }
+[title="BolachaOreo"] { background: #292b31 !important; color: #f1f0f4 !important; border-color: #595c65 !important; }
+
+/* Barra de ações: dock sólido, teclado e toque */
+.control-bar {
+  background: #101218 !important;
+  border-top: 1px solid var(--lc-stroke) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.control-bar-inner {
+  border: 1px solid var(--lc-stroke);
+  border-radius: 17px;
+  background: #181b23;
+  padding: 7px 10px;
+}
+.control-bar-inner > button,
+.control-bar-inner > div > button {
+  background-color: #242832;
+  border-color: #343944;
+  border-radius: 12px;
+  box-shadow: none !important;
+}
+.control-bar-inner > button:hover:not(:disabled),
+.control-bar-inner > div > button:hover:not(:disabled) {
+  background-color: #323747;
+}
+.control-bar-inner button[title="Sair da chamada"] {
+  background: #963b47 !important;
+  border: 1px solid #ac505b !important;
+  color: #fff !important;
+}
+.control-bar-inner button[title="Sair da chamada"]:hover { background: #b54752 !important; }
+.control-dock { background: #181b23 !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+/* Chat e lista de participantes como superfícies irmãs */
+.lumacall-chat-panel,
+.lumacall-participants-panel {
+  background: #151820 !important;
+  border-color: var(--lc-stroke-strong) !important;
+  box-shadow: 0 16px 45px rgba(0,0,0,.30) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.lumacall-chat-panel > header,
+.lumacall-participants-panel > header {
+  background: #1a1d25 !important;
+  border-bottom-color: var(--lc-stroke) !important;
+}
+.lumacall-chat-panel article {
+  border-radius: 11px;
+  transition: background-color 130ms ease;
+}
+.lumacall-chat-panel article:hover { background: #222631 !important; }
+.lumacall-chat-panel article img,
+.lumacall-participants-panel img { flex-shrink: 0; }
+.lumacall-chat-panel form,
+.lumacall-chat-panel footer { border-color: var(--lc-stroke) !important; }
+.lumacall-chat-panel textarea,
+.lumacall-chat-panel input:not([type="file"]) {
+  background: #0e1117 !important;
+  border: 1px solid #343946 !important;
+  border-radius: 12px !important;
+}
+.lumacall-chat-panel button { transition: background-color 150ms ease, color 150ms ease; }
+.lumacall-participants-panel button:hover { background-color: #252a34 !important; }
+
+/* Perfil, configurações, caixas de confirmação */
+.lc-profile-modal {
+  background: #181b23 !important;
+  border-color: #353945 !important;
+  box-shadow: 0 22px 70px rgba(0,0,0,.52) !important;
+}
+.lc-profile-modal input { background: #0f1118 !important; }
+.lc-profile-modal h2 { color: #f3f3f7; }
+.lc-profile-modal button[type="submit"],
+.lc-profile-modal button:not([type]) {
+  background-image: none !important;
+}
+[role="dialog"] .glass,
+[aria-modal="true"] .glass {
+  background: #181b23 !important;
+  border-color: #343842 !important;
+}
+[role="dialog"] { backdrop-filter: blur(3px); }
+[role="dialog"] button { transition: background-color 130ms ease, border-color 130ms ease; }
+
+/* Microdetalhes e responsividade sem efeitos pesados */
+@media (min-width: 861px) {
+  .lumacall-home-card { padding: 10px !important; }
+  .lumacall-call-stage { padding: 14px !important; }
+}
+@media (max-width: 860px) {
+  .control-bar { background: transparent !important; border-top: none !important; }
+  .control-bar-inner { padding: 4px; background: #171a21 !important; border-radius: 14px; }
+  .lumacall-chat-panel, .lumacall-participants-panel {
+    background: #14171e !important;
+    border-radius: 17px !important;
+  }
+}
+@media (max-width: 560px) {
+  .lumacall-home-card { border-radius: 19px !important; }
+  .lc-participant-tile { border-radius: 14px !important; }
+  .lc-screen-share { border-radius: 13px !important; }
+  .control-bar-inner { width: 100%; justify-content: space-between; padding: 4px; }
+  .control-bar-inner button { border-radius: 10px !important; }
+  .lc-prejoin .glass { border-radius: 17px !important; }
+  .lumacall-home .soft-grid { opacity: .07 !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lc-call *, .lumacall-home *, .lc-prejoin * { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
