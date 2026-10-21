@@ -193,7 +193,7 @@ export function RoomClient({ roomId }: { roomId: string }) {
         </div>
       </div>
     )}
-    {phase==="connecting"&&<main className="flex h-full flex-col items-center justify-center gap-4 bg-[#0b0d11] text-zinc-200"><LoaderCircle className="size-8 animate-spin text-[#bdb8f9]"/><p className="text-sm font-semibold">Conectando à chamada...</p><p className="text-xs text-zinc-500">Seu nome e suas permissões já estão prontos.</p></main>}}
+    {phase==="connecting"&&<main className="flex h-full flex-col items-center justify-center gap-4 bg-[#0b0d11] text-zinc-200"><LoaderCircle className="size-8 animate-spin text-[#bdb8f9]"/><p className="text-sm font-semibold">Conectando à chamada...</p><p className="text-xs text-zinc-500">Seu nome e suas permissões já estão prontos.</p></main>}
     {phase==="call"&&preferences&&session&&(
       <LiveKitRoom token={token} serverUrl={serverUrl} connect audio={audioOptions} video={videoOptions}
         options={{adaptiveStream:true,dynacast:true,disconnectOnPageLeave:true}}
