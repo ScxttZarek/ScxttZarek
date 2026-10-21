@@ -1,0 +1,250 @@
+/* LumaCall AllBlack v2 - design sólido, responsivo e legível */
+:root {
+  color-scheme: dark;
+  --lc-canvas: #030303;
+  --lc-shell: #080808;
+  --lc-panel: #0c0c0d;
+  --lc-raised: #151515;
+  --lc-hover: #222222;
+  --lc-stroke: rgba(255,255,255,.12);
+  --lc-stroke-strong: rgba(255,255,255,.20);
+  --lc-text: #f7f7f7;
+  --lc-muted: #a5a5a9;
+  --lc-accent: #f3f3f3;
+}
+html, body { background:#030303 !important; color:#f5f5f5; }
+body, .lc-call, .lc-start, .lc-lobby, .lc-workspace,
+.desktop-shell, .lumacall-call-stage, .lc-room-content,
+.lc-prejoin, .lc-general-chat {
+  background-color: #030303 !important;
+  background-image: none !important;
+}
+.lc-start {background:#050505!important;}
+.lc-start header, .lc-lobby header, .call-header {
+  background: #090909 !important;
+  background-image:none!important;
+  border-color:rgba(255,255,255,.13)!important;
+}
+.lc-start h1 {color:#f6f6f6;}
+.lc-start button:not(:disabled):hover {transition-duration:120ms;}
+/* Painéis, canais, textos: preto real em camadas discretas */
+.lc-rooms-sidebar, .lc-lobby-sidebar {
+  background:#080808 !important;
+  border-color:rgba(255,255,255,.13)!important;
+  box-shadow:none!important;
+}
+.lc-rooms-sidebar > div, .lc-lobby-sidebar > div {border-color:rgba(255,255,255,.10)!important;}
+.lc-rooms-sidebar .lc-sidebar-entry, .lc-lobby-sidebar .lc-sidebar-entry {
+  border:1px solid transparent;
+  color:#c5c5c8!important;
+}
+.lc-rooms-sidebar .lc-sidebar-entry:hover, .lc-lobby-sidebar .lc-sidebar-entry:hover,
+.lc-rooms-sidebar .lc-member-row:hover, .lc-lobby-sidebar .lc-member-row:hover {
+  background:#191919 !important; color:#fff!important;
+}
+.lc-rooms-sidebar .lc-selected, .lc-lobby-sidebar .lc-selected {
+  background:#242424 !important;
+  color:#fff !important;
+  border:1px solid rgba(255,255,255,.17);
+  box-shadow:inset 3px 0 0 rgba(255,255,255,.80);
+}
+.lc-rooms-sidebar .lc-member-row, .lc-lobby-sidebar .lc-member-row {
+  border-radius:9px;
+}
+.lc-rooms-sidebar .lc-member-row img, .lc-lobby-sidebar .lc-member-row img {
+  border:1px solid rgba(255,255,255,.20);
+}
+.lc-chat-channel-heading, .lc-room-content .lc-chat-channel-heading,
+.lc-lobby main > div:first-child {
+  background:#0d0d0d !important;
+  border-color:rgba(255,255,255,.13)!important;
+  color:#f5f5f5!important;
+}
+.lc-lobby-sidebar button:not(.lc-sidebar-entry),.lc-start button:not(.lc-sidebar-entry){
+  box-shadow:none!important;
+}
+/* Palco de vídeo: grade equilibrada, independente da escala do navegador */
+.lc-call .lc-room-content:not(.lc-room-chat) .lumacall-call-stage {
+  height:100%;
+  min-height:0;
+  min-width:0;
+  padding:clamp(10px, 1.8vw, 26px)!important;
+  overflow:hidden;
+}
+.lc-call .lumacall-call-stage > div:first-child {
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  min-height:0;
+  height:100%;
+  overflow:auto;
+}
+.lc-call .participant-grid {
+  width:100%;
+  max-width:min(1100px, 100%);
+  min-height:0;
+  height:auto;
+  align-content:center;
+  justify-items:stretch;
+  gap:clamp(8px, 1.5vw, 18px) !important;
+  margin:auto;
+}
+.lc-call .participant-grid[data-focused="false"] > div {
+  min-width:0;
+  width:100%;
+  max-width:min(100%, 460px);
+  height:auto;
+  min-height:0;
+  aspect-ratio:1 / 1;
+  margin:auto;
+}
+.lc-call .participant-grid[data-focused="true"] {
+  max-width:min(1150px,100%);
+  height:100%;
+  min-height:0;
+  align-content:stretch;
+}
+.lc-call .participant-grid[data-focused="true"] > div {
+  min-width:0;
+  min-height:0;
+  height:100%;
+  max-width:100%;
+  aspect-ratio:auto;
+}
+.lc-call .participant-grid[data-focused="true"] .lc-participant-tile,
+.lc-call .participant-grid[data-focused="true"] .lc-screen-share {
+  min-height:0;
+  height:100%;
+}
+.lc-participant-tile {
+  background:#111111!important;
+  border:1px solid rgba(255,255,255,.16)!important;
+  border-radius:15px!important;
+  box-shadow:none!important;
+}
+.lc-participant-tile:hover {border-color:rgba(255,255,255,.34)!important;}
+.lc-participant-tile.speaking {
+  border-color:#69cc9d!important;
+  box-shadow:0 0 0 1px rgba(105,204,157,.25)!important;
+}
+.lc-screen-share {
+  background:#050505!important;
+  border-color:rgba(255,255,255,.20)!important;
+}
+.lc-screen-share > div:first-child {
+  background:#0d0d0d!important;
+  border-color:rgba(255,255,255,.15)!important;
+}
+/* Barra de chamadas: preto e branco, verde ao compartilhar e vermelho ao desligar */
+.control-bar {
+  background:#080808!important;
+  border-top:1px solid rgba(255,255,255,.12)!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+}
+.control-bar-inner {
+  background:#101010!important;
+  border:1px solid rgba(255,255,255,.15)!important;
+  border-radius:16px!important;
+  box-shadow:0 12px 28px rgba(0,0,0,.30);
+}
+.control-bar-inner > button,
+.control-bar-inner > div > button {
+  background:#191919!important;
+  color:#ededed!important;
+  border:1px solid rgba(255,255,255,.16)!important;
+  border-radius:11px!important;
+  box-shadow:none!important;
+  transition:background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.control-bar-inner > button:hover:not(:disabled),
+.control-bar-inner > div > button:hover:not(:disabled) {
+  background:#2a2a2a!important;
+  border-color:rgba(255,255,255,.40)!important;
+}
+.control-bar-inner button[title="Ativar microfone"],
+.control-bar-inner button[title="Ativar câmera"] {
+  background:#291415!important;
+  border-color:rgba(234,87,101,.40)!important;
+  color:#ff9da5!important;
+}
+.control-bar-inner button[title="Parar compartilhamento"] {
+  background:#10271b!important;
+  border-color:rgba(69,205,127,.52)!important;
+  color:#9af7c1!important;
+}
+.control-bar-inner button[title="Sair da chamada"] {
+  background:#bc3544!important;
+  color:#fff!important;
+  border-color:#d35662!important;
+}
+.control-bar-inner button[title="Sair da chamada"]:hover {
+  background:#d64452!important;
+  border-color:#f36c77!important;
+}
+.call-header button {
+  background:#141414!important;
+  border:1px solid rgba(255,255,255,.15)!important;
+  color:#e2e2e2!important;
+}
+.call-header button:hover {background:#222!important;border-color:rgba(255,255,255,.32)!important;}
+.call-header .call-ad-slot {background:#0c0c0c!important;border-color:rgba(255,255,255,.10)!important;}
+/* Chat geral e chat da chamada */
+.lc-general-chat, .lc-general-live,
+.lc-room-content.lc-room-chat .lumacall-chat-panel,
+.lumacall-chat-panel, .lumacall-participants-panel {
+  background:#080808!important;
+  border-color:rgba(255,255,255,.15)!important;
+}
+.lc-general-history, .lumacall-chat-panel > div:nth-child(2) {background:#080808!important;}
+.lc-general-message:hover, .lumacall-chat-panel article:hover {background:#151515!important;}
+.lc-general-chat form, .lumacall-chat-panel form {background:#090909!important;border-color:rgba(255,255,255,.12)!important;}
+.lc-general-chat form > div,
+.lc-room-content.lc-room-chat .lumacall-chat-panel form > div {
+  background:#171717!important;
+  border-color:rgba(255,255,255,.18)!important;
+}
+.lc-general-chat form > div:focus-within,
+.lumacall-chat-panel form > div:focus-within {
+  border-color:rgba(255,255,255,.48)!important;
+}
+.lc-general-chat button[aria-label="Enviar ao chat geral"] {
+  background:#f4f4f4!important;
+  color:#080808!important;
+}
+.lc-general-chat button[aria-label="Enviar ao chat geral"]:hover {background:#dcdcdc!important;}
+.lc-general-chat textarea {background:transparent!important;color:#f5f5f5!important;}
+.lumacall-chat-panel > header, .lumacall-participants-panel > header {
+  background:#101010!important;
+  border-color:rgba(255,255,255,.13)!important;
+}
+/* Identidades especiais mantêm cores de reconhecimento */
+:is(.lc-participant-tile,.lumacall-chat-panel,.lumacall-participants-panel,.lc-screen-share)
+:is([title="Criador"],[title="Editor"],[title="Império Sohlar"],[title="Princesa Tess"],[title="BolachaOreo"]) {
+  border-radius:7px!important;
+  box-shadow:none!important;
+}
+.lc-profile-modal, [role="dialog"] .glass {background:#101010!important;border-color:rgba(255,255,255,.20)!important;}
+.lc-prejoin .glass, .glass {background:#101010!important;border-color:rgba(255,255,255,.16)!important;}
+/* Dispositivos e pequenos detalhes */
+::selection {background:rgba(255,255,255,.26)!important;color:#fff;}
+a, button { -webkit-tap-highlight-color:transparent; }
+button:focus-visible, a:focus-visible, textarea:focus-visible, input:focus-visible {
+  outline:2px solid #eee!important;
+  outline-offset:2px;
+}
+@media (max-width:860px) {
+  .lc-call .lc-room-content:not(.lc-room-chat) .lumacall-call-stage {
+    padding:10px!important;
+  }
+  .control-bar {background:transparent!important;}
+  .control-bar-inner {background:#101010!important;}
+}
+@media (max-width:560px) {
+  .lc-call .participant-grid[data-focused="false"] {max-width:100%;align-content:start;}
+  .lc-call .participant-grid[data-focused="false"] > div {max-width:100%;aspect-ratio:1/1;}
+  .lc-call .participant-grid[data-focused="true"] {min-height:0;height:100%;}
+  .lc-call .lc-room-content:not(.lc-room-chat) .lumacall-call-stage {padding:8px!important;}
+  .lc-screen-share, .lc-participant-tile {border-radius:12px!important;}
+  .control-bar-inner {padding:3px!important;gap:3px!important;}
+}
