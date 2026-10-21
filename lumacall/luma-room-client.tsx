@@ -36,6 +36,7 @@ export function RoomClient({ roomId }: { roomId: string }) {
   const [lobbyRoom,setLobbyRoom]=useState<Room|null>(null);
   const [lobbyLoading,setLobbyLoading]=useState(true);
   const [messages,setMessages]=useState<GeneralMessage[]>([]);
+  const [callMembers,setCallMembers]=useState<{name:string;badge?:string}[]>([]);
   const lobbyRef=useRef<Room|null>(null);
 
   useEffect(()=>{
@@ -82,6 +83,22 @@ export function RoomClient({ roomId }: { roomId: string }) {
     void connect();
     return ()=>{canceled=true;if(lobbyRef.current===active)lobbyRef.current=null;void active?.disconnect();};
   },[roomId,displayName,proof]);
+
+  useEffect(()=>{
+    if(phase!=="lobby")return;
+    let stopped=false;
+    const refresh=async()=>{
+      try{
+        const response=await fetch("/api/livekit/call-presence?roomId="+encodeURIComponent(roomId),{cache:"no-store"});
+        if(!response.ok)return;
+        const payload=await response.json() as {members?:{name:string;badge?:string}[]};
+        if(!stopped && Array.isArray(payload.members))setCallMembers(payload.members.slice(0,6));
+      }catch{}
+    };
+    void refresh();
+    const timer=window.setInterval(()=>void refresh(),7500);
+    return ()=>{stopped=true;window.clearInterval(timer);};
+  },[roomId,phase]);
 
   const sendGeneral = useCallback(async(text:string)=>{
     const conn=lobbyRef.current;
@@ -130,6 +147,17 @@ export function RoomClient({ roomId }: { roomId: string }) {
               <div className="lc-sidebar-entry lc-selected flex items-center gap-2 rounded-lg px-3 py-2.5 text-xs font-bold"><Hash className="size-4"/>geral</div>
               <p className="mt-6 px-3 pb-2 text-[10px] font-bold uppercase tracking-[.13em] text-zinc-500">Chamadas</p>
               <button onClick={()=>setPhase("prejoin")} className="lc-sidebar-entry flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-xs font-semibold text-zinc-300"><Headphones className="size-4 shrink-0"/>Entrar na chamada</button>
+              {callMembers.length>0&&<div className="mt-3 space-y-1 px-2">
+                {callMembers.map((member,index)=>(
+                  <button type="button" key={member.name+index} onClick={()=>setPhase("prejoin")} title={"Entrar na chamada com "+member.name} className="lc-member-row flex w-full min-w-0 items-center gap-2 rounded-lg px-1 py-1.5 text-left">
+                    <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full bg-[#2d303b] text-[10px] font-bold text-zinc-200">
+                      {member.badge==="princesa_tess"?<img src="/avatars/shine.webp" alt="" className="size-full object-cover"/>:member.badge==="bolacha_oreo"?<img src="/avatars/aldron.webp" alt="" className="size-full object-cover"/>:member.name.slice(0,1).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-[10px] text-zinc-400">{member.name}</span>
+                  </button>
+                ))}
+              </div>}
+
             </div>
             <div className="border-t border-white/[.07] p-3"><button type="button" onClick={()=>setPhase("prejoin")} className="focus-ring w-full rounded-xl bg-[#bbb6f6] px-3 py-3 text-xs font-bold text-[#101118] hover:bg-[#d0ccff]">Entrar na chamada</button></div>
           </aside>
