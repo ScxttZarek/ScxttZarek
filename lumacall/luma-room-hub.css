@@ -1,0 +1,74 @@
+
+/* LumaCall Room Hub */
+.lc-start { background:#0a0b0e !important; }
+.lc-start header { border-bottom:1px solid rgba(255,255,255,.055); }
+.lc-workspace { background:#0b0d11; }
+.lc-rooms-sidebar { box-shadow: inset -1px 0 rgba(255,255,255,.02); }
+.lc-sidebar-entry,.lc-member-row { transition: background-color .14s ease, color .14s ease; }
+.lc-sidebar-entry:hover,.lc-member-row:hover { background:#22262f; color:#f4f4f7; }
+.lc-selected { color:#edeaff !important; background:#2a2939 !important; }
+.lc-rooms-sidebar .lc-member-row { min-width:0; }
+.lc-room-content.lc-room-chat .lumacall-chat-panel {
+  inset:52px 0 0 0 !important;
+  top:52px !important; right:0 !important; bottom:0 !important; left:0 !important;
+  width:100% !important; max-width:100% !important;
+  height:calc(100% - 52px) !important;
+  border:0 !important; border-radius:0 !important;
+  box-shadow:none !important;
+  transform:none !important;
+  background:#111318 !important;
+  opacity:1 !important;
+}
+.lc-room-content.lc-room-chat .lumacall-chat-panel > header { display:none !important; }
+.lc-room-content.lc-room-chat .lumacall-chat-panel > div:nth-child(2) { padding:17px 26px; }
+.lc-room-content.lc-room-chat .lumacall-chat-panel article { max-width:940px; border-radius:9px; padding:11px 15px; }
+.lc-room-content.lc-room-chat .lumacall-chat-panel article p { font-size:14px; line-height:1.6; }
+.lc-room-content.lc-room-chat .lumacall-chat-panel article > div:first-child img { width:40px; height:40px; }
+.lc-room-content.lc-room-chat .lumacall-chat-panel form { padding:14px 25px 20px; background:#111318 !important; }
+.lc-room-content.lc-room-chat .lumacall-chat-panel form > div { max-width:940px; margin:0 auto; background:#1d212a !important; border-color:#373b49 !important; }
+.lc-room-content.lc-room-chat .lumacall-chat-panel textarea { min-height:44px; background:transparent !important; border:0 !important; font-size:14px; }
+.lc-room-content.lc-room-chat .lumacall-chat-panel article time { font-size:10px; }
+.lc-room-content.lc-room-chat .lumacall-call-stage { display:none !important; }
+.lc-call .lc-room-content:not(.lc-room-chat) .lumacall-call-stage {
+  height:100%; padding:20px !important;
+}
+.lc-call .lc-room-content:not(.lc-room-chat) .lumacall-chat-panel {
+  display:none !important;
+}
+.lc-call .lc-workspace .lc-room-content .participant-grid {
+  max-width:1150px;
+  margin:auto;
+}
+.lc-call .lc-rooms-sidebar .lc-member-row:focus-visible,.lc-call .lc-sidebar-entry:focus-visible {
+  outline:2px solid #b5b0f5;outline-offset:-2px;
+}
+@media(max-width:860px){
+  .lc-rooms-sidebar { width:185px !important; }
+  .lc-workspace { padding-bottom:calc(74px + env(safe-area-inset-bottom)); }
+  .lc-room-content.lc-room-chat .lumacall-chat-panel {
+    bottom:0 !important;
+    max-width:100% !important;
+    max-height:calc(100% - 52px) !important;
+  }
+}
+@media(max-width:560px){
+  .lc-workspace { flex-direction:column; padding-bottom:calc(66px + env(safe-area-inset-bottom)); }
+  .lc-rooms-sidebar {
+    width:100% !important;height:auto !important;max-height:90px;
+    flex-direction:row;align-items:center;
+    border-right:0 !important;border-bottom:1px solid rgba(255,255,255,.08);
+  }
+  .lc-rooms-sidebar > div:first-child,.lc-rooms-sidebar > div:last-child { display:none; }
+  .lc-rooms-sidebar > div:nth-child(2) {
+    overflow-x:auto;overflow-y:hidden;
+    width:100%;padding:6px 8px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .lc-rooms-sidebar p,.lc-rooms-sidebar .lc-member-row { display:none !important; }
+  .lc-rooms-sidebar .lc-sidebar-entry { width:auto;flex-shrink:0;white-space:nowrap;padding:9px 12px; }
+  .lc-rooms-sidebar .lc-sidebar-entry span { margin-left:7px; }
+  .lc-room-content.lc-room-chat .lumacall-chat-panel form {padding:10px 11px 13px;}
+  .lc-room-content.lc-room-chat .lumacall-chat-panel > div:nth-child(2) {padding:10px;}
+  .lc-chat-channel-heading {padding:0 14px;}
+  .lc-call .lc-room-content:not(.lc-room-chat) .lumacall-call-stage {padding:10px !important;}
+}
