@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LiveKitRoom } from "@livekit/components-react";
 import { Room, RoomEvent, RemoteParticipant } from "livekit-client";
-import { ArrowLeft, Headphones, Hash, MessageCircle, RotateCcw } from "lucide-react";
+import { ArrowLeft, Copy, Headphones, Hash } from "lucide-react";
 import { Brand } from "@/components/ui/brand";
 import { DISPLAY_NAME_KEY, RESERVED_NAME_PROOF_KEY, NameModal } from "@/components/ui/name-modal";
 import { PreJoin } from "@/components/call/pre-join";
@@ -56,7 +56,7 @@ export function RoomClient({ roomId }: { roomId: string }) {
       try{
         const response=await fetch("/api/livekit/lobby-token",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({roomId,displayName,reservedNameProof:proof})});
         const payload=await response.json();
-        if(!response.ok)throw Error(payload.error||"O chat geral não pôde ser iniciado.");
+        if(!response.ok){if(payload.reservedNameRequired)setNameOpen(true);throw Error(payload.error||"O chat geral não pôde ser iniciado.");}
         if(canceled)return;
         const conn=new Room({adaptiveStream:false,dynacast:false});
         active=conn;
@@ -121,7 +121,7 @@ export function RoomClient({ roomId }: { roomId: string }) {
       <div className="lc-lobby flex h-full flex-col bg-[#0b0d11]">
         <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-white/[.07] bg-[#111319] px-4 sm:px-6">
           <Brand />
-          <div className="flex items-center gap-3"><span className="hidden font-mono text-xs text-zinc-500 sm:inline">{roomId}</span><Link href="/" className="focus-ring rounded-lg border border-white/[.08] bg-[#1c2028] px-3 py-2 text-xs text-zinc-300 hover:bg-[#2a2e37]">Sair da sala</Link></div>
+          <div className="flex items-center gap-2 sm:gap-3"><span className="hidden font-mono text-xs text-zinc-500 sm:inline">{roomId}</span><button type="button" onClick={()=>void navigator.clipboard.writeText(window.location.href)} className="focus-ring inline-flex items-center gap-1.5 rounded-lg border border-white/[.08] bg-[#242832] px-3 py-2 text-xs text-zinc-200 hover:bg-[#313646]"><Copy className="size-3.5"/>Convite</button><Link href="/" className="focus-ring rounded-lg border border-white/[.08] bg-[#1c2028] px-3 py-2 text-xs text-zinc-300 hover:bg-[#2a2e37]">Sair da sala</Link></div>
         </header>
         <div className="flex min-h-0 flex-1">
           <aside className="lc-lobby-sidebar flex w-[238px] shrink-0 flex-col border-r border-white/[.08] bg-[#101216]">
@@ -141,7 +141,7 @@ export function RoomClient({ roomId }: { roomId: string }) {
       </div>
     )}
     {(phase==="prejoin"||phase==="connecting")&&<>
-      <div className="absolute left-4 top-3 z-20"><button type="button" onClick={()=>{if(phase!=="connecting")setPhase("lobby")}} disabled={phase==="connecting"} className="focus-ring flex items-center gap-1.5 rounded-xl bg-[#232631] px-3 py-2 text-xs text-zinc-300 disabled:opacity-40"><ArrowLeft className="size-3.5"/>Voltar ao chat</button></div>
+      <div className="absolute right-4 top-[76px] z-20"><button type="button" onClick={()=>{if(phase!=="connecting")setPhase("lobby")}} disabled={phase==="connecting"} className="focus-ring flex items-center gap-1.5 rounded-xl bg-[#232631] px-3 py-2 text-xs text-zinc-300 disabled:opacity-40"><ArrowLeft className="size-3.5"/>Voltar ao chat</button></div>
       <PreJoin roomId={roomId} onJoin={join} busy={phase==="connecting"} error={error}/>
     </>}
     {phase==="call"&&preferences&&session&&(
