@@ -3,6 +3,7 @@
 import { FormEvent, KeyboardEvent, useState } from "react";
 import { Hash, Send, MessageCircle } from "lucide-react";
 import { sanitizeChatMessage } from "@/lib/utils";
+import { reservedAvatarForBadge } from "@/lib/reserved-profile";
 import { CHAT_MAX } from "@/lib/constants";
 
 export type GeneralMessage = {
@@ -24,6 +25,7 @@ const colors:Record<string,string>={
 function avatarFor(badge?:string) {
   if(badge==="princesa_tess")return "/avatars/shine.webp";
   if(badge==="bolacha_oreo")return "/avatars/aldron.webp";
+  if(badge==="creator" || badge==="editor" || badge==="imperio_sohlar") return reservedAvatarForBadge(badge);
   return null;
 }
 
