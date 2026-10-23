@@ -1,3 +1,4 @@
+import "../v2.css";
 import { Hash, Headphones, Plus, Users, Mic, CameraOff, MonitorUp, PhoneOff, Settings2, Compass, ImagePlus } from "lucide-react";
 const tags=[["CRIADOR","creator"],["PRINCESA TESS","princesa_tess"],["EDITOR","editor"]];
 export const metadata={title:"LumaCall 2.0 — Prévia visual"};
