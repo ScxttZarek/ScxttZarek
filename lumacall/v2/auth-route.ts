@@ -14,7 +14,7 @@ export async function POST(request:Request) {
     const body=await request.json() as {action?:string;name?:unknown;secret?:unknown};
     const normalized=normalizedName(body.name);
     const secret=body.secret;
-    if(!normalized || typeof secret!=="string"||secret.length<8||secret.length>200)return asJson("Use um nome de 3 a 24 caracteres e um código secreto de pelo menos 8 caracteres.");
+    if(!normalized || typeof secret!=="string"||secret.length<4||secret.length>200)return asJson("Use um nome de 3 a 24 caracteres e um código secreto de pelo menos 4 caracteres.");
     if(body.action==="register"){
       const reserved=checkReserved(normalized.key,secret);
       if(!reserved.valid)return asJson("Este nome é reservado e exige o código exclusivo.",403);
