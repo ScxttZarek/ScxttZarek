@@ -1,5 +1,5 @@
 import { db } from "./database";
-import { getUser, normalizedName, checkReserved, asJson, verifyOrigin } from "./auth";
+import { getUser, normalizedName, asJson, verifyOrigin } from "./auth";
 export const runtime="nodejs";
 export async function PATCH(request:Request){
   if(!verifyOrigin(request))return asJson("Origem inválida.",403);
@@ -8,9 +8,8 @@ export async function PATCH(request:Request){
     const body=await request.json() as {name?:unknown;avatar?:unknown};
     if(Object.prototype.hasOwnProperty.call(body,"name")){
       const n=normalizedName(body.name);if(!n)return asJson("Nome inválido.");
-      // Um nome reservado só pode continuar na mesma conta, nunca reivindicado trocando o perfil.
-      if(n.key!==user.name_key && checkReserved(n.key,"").badge)return asJson("Nome exclusivo reservado.",403);
-      try {await db("UPDATE v2_users SET name=$1,name_key=$2,badge=$3 WHERE id=$4",[n.name,n.key,n.key===user.name_key?user.badge:null,user.id]);}
+      // A restrição restante é a unicidade global no índice name_key do banco.
+      try {await db("UPDATE v2_users SET name=$1,name_key=$2 WHERE id=$3",[n.name,n.key,user.id]);}
       catch(e){if(String(e).includes("23505")||String(e).toLowerCase().includes("duplicate"))return asJson("Este nome já está sendo usado.",409);throw e;}
     }
     if(Object.prototype.hasOwnProperty.call(body,"avatar")){

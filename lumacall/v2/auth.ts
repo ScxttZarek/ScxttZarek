@@ -4,30 +4,12 @@ import { promisify } from "node:util";
 import { db } from "./database";
 const scrypt = promisify(scryptCallback);
 export const COOKIE_NAME = "lc_v2_session";
-export const RESERVED: Record<string, { name:string; badge:string; key:string }> = {
-  ohenrique: {name:"OHenrique",badge:"creator",key:"RESERVED_OHENRIQUE_CODE"},
-  userqubo: {name:"UserQubo",badge:"editor",key:"RESERVED_USERQUBO_CODE"},
-  nandobc0: {name:"NandoBC0",badge:"imperio_sohlar",key:"RESERVED_NANDOBC0_CODE"},
-  shine: {name:"Shine",badge:"princesa_tess",key:"RESERVED_SHINE_CODE"},
-  aldron: {name:"Aldron",badge:"bolacha_oreo",key:"RESERVED_ALDRON_CODE"}
-};
 export type User = {id:string; name:string; name_key:string; avatar_data_url:string|null; badge:string|null};
 export function normalizedName(v:unknown) {
   if(typeof v!=="string") return null;
   const name=v.normalize("NFKC").trim().replace(/\s+/g," ");
   if(name.length<3 || name.length>24 || !/^[\p{L}\p{N}_. -]+$/u.test(name))return null;
   return {name,key:name.toLocaleLowerCase("pt-BR")};
-}
-export function safeEqual(a:string,b:string) {
-  const x=createHash("sha256").update(a).digest();
-  const y=createHash("sha256").update(b).digest();
-  return timingSafeEqual(x,y);
-}
-export function checkReserved(nameKey:string,secret:string) {
-  const reserved=RESERVED[nameKey];
-  if(!reserved) return {badge:null,name:null,valid:true};
-  const env=process.env[reserved.key];
-  return {badge:reserved.badge,name:reserved.name,valid:Boolean(env)&&safeEqual(secret,env!)};
 }
 export async function secretHash(secret:string,salt=randomBytes(16).toString("hex")) {
   const out=await scrypt(secret,salt,64) as Buffer;
