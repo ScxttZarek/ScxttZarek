@@ -1,11 +1,18 @@
 "use client";
+import { reservedAvatarForBadge } from "@/lib/reserved-profile";
 import { useState } from "react";
 import { LiveKitRoom, RoomAudioRenderer, useParticipants, useRoomContext, useTracks, VideoTrack, isTrackReference } from "@livekit/components-react";
 import { Track } from "livekit-client";
 import { Camera, CameraOff, Headphones, Mic, MicOff, MonitorUp, PhoneOff, Video } from "lucide-react";
 type Member = {id:string;name:string;badge:string|null;avatar_data_url:string|null};
-function Avatar({name,src,size=48}:{name:string;src?:string|null;size?:number}){
-  return src?<img src={src} alt="" className="v2-avatar" style={{width:size,height:size}}/>:<span className="v2-avatar v2-avatar-fallback" style={{width:size,height:size,fontSize:Math.round(size*.38)}}>{(name||"?").slice(0,1).toUpperCase()}</span>;
+function defaultReservedAvatar(badge?:string|null) {
+  if(badge==="princesa_tess")return "/avatars/shine.webp";
+  if(badge==="bolacha_oreo")return "/avatars/aldron.webp";
+  return reservedAvatarForBadge(badge||undefined);
+}
+function Avatar({name,src,badge,size=48}:{name:string;src?:string|null;badge?:string|null;size?:number}){
+  const image=src || defaultReservedAvatar(badge);
+  return image?<img src={image} alt="" className="v2-avatar" style={{width:size,height:size}}/>:<span className="v2-avatar v2-avatar-fallback" style={{width:size,height:size,fontSize:Math.round(size*.38)}}>{(name||"?").slice(0,1).toUpperCase()}</span>;
 }
 function VoiceInside({members,onLeave}:{members:Member[];onLeave:()=>void}){
   const room=useRoomContext();
@@ -23,7 +30,7 @@ function VoiceInside({members,onLeave}:{members:Member[];onLeave:()=>void}){
         const user=members.find(m=>m.id===participant.identity);
         const camera=tracks.find(x=>x.participant.identity===participant.identity&&x.source===Track.Source.Camera);
         return <div className="v2-voice-tile" key={participant.identity}>
-          {camera?<VideoTrack trackRef={camera}/>:<Avatar name={participant.name||user?.name||"?"} src={user?.avatar_data_url} size={84}/>}
+          {camera?<VideoTrack trackRef={camera}/>:<Avatar name={participant.name||user?.name||"?"} src={user?.avatar_data_url} badge={user?.badge} size={84}/>}
           <div className="v2-voice-tile-bottom"><strong>{participant.name||user?.name||"Participante"}</strong>{!participant.isMicrophoneEnabled&&<MicOff size={15}/>}</div>
         </div>
       })}
