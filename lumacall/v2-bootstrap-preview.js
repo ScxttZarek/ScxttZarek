@@ -12,7 +12,8 @@ const copies=[
 ["v2/voice-route.ts","app/api/v2/voice/route.ts"],
 ["v2/voice.tsx","components/v2/voice.tsx"],
 ["v2/nova-app.tsx","components/v2/nova-app.tsx"],
-["v2/v2.css","app/nova/v2.css"]
+["v2/v2.css","app/nova/v2.css"],
+["v2/demo-page.tsx","app/nova/demo/page.tsx"]
 ];
 for(const [source,dest] of copies){
   let code=fs.readFileSync(source,"utf8");
