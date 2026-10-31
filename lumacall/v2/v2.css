@@ -111,3 +111,21 @@
 .v2-stream-viewer:fullscreen .v2-stream-player{flex:1 1 0%;min-height:0;min-width:0;width:100%;height:100%;padding:6px;background:#030303}
 .v2-stream-viewer:fullscreen .v2-stream-player video{display:block;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain}
 @media(max-width:650px){.v2-stream-title-actions{gap:5px}.v2-stream-title-actions button{padding:7px}.v2-stream-title-actions button span{display:none}.v2-stream-viewer:fullscreen .v2-stream-title{min-height:45px;padding:6px 10px}}
+
+/* Chrome app-style install entry, separate from login and voice controls */
+.v2-install-button{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:9px 11px;border:1px solid #414141;border-radius:9px;background:#202020;color:#f4f4f4;font-size:11px;line-height:1.25;font-weight:700;white-space:nowrap}
+.v2-install-button:hover{background:#303030;border-color:#777;color:#fff}
+.v2-install-auth{margin-top:18px;padding-top:15px;border-top:1px solid #292929}
+.v2-install-auth .v2-install-button{width:100%;min-height:42px}
+.v2-top-actions .v2-install-compact{background:#191919;border-color:#444;color:#e5e5e5}
+.v2-install-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.85);display:grid;place-items:center;padding:14px;overflow-y:auto}
+.v2-install-dialog{position:relative;width:min(100%,460px);max-height:min(90dvh,670px);overflow-y:auto;padding:26px;border:1px solid #484848;border-radius:17px;background:#151515;color:#f5f5f5;box-shadow:0 25px 90px #000}
+.v2-install-close{position:absolute;right:14px;top:14px;border:0;background:transparent;color:#aaa;padding:6px}
+.v2-install-symbol{width:52px;height:52px;display:grid;place-items:center;border:1px solid #4a4a4a;border-radius:13px;background:#222;margin-bottom:16px}
+.v2-install-dialog h2{font-size:21px;letter-spacing:-.03em;margin:0 0 8px;font-weight:850}
+.v2-install-dialog p{font-size:12px;line-height:1.7;color:#aaa;margin:0 0 17px}
+.v2-install-dialog ol{margin:0;padding:0 0 0 20px;color:#dedede;font-size:12px;line-height:1.8}
+.v2-install-dialog li{margin:7px 0;padding-left:4px}
+.v2-install-dialog strong{color:#fff}
+.v2-install-done{width:100%;min-height:42px;border:1px solid #e1e1e1;border-radius:9px;background:#ececec;color:#111;font-weight:800;margin-top:17px}
+@media(max-width:650px){.v2-top-actions .v2-install-compact{padding:8px}.v2-top-actions .v2-install-compact span{display:none}.v2-install-dialog{padding:22px}}
