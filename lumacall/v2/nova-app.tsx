@@ -172,6 +172,7 @@ export function NovaApp(){
     }catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
   function openDM(peerId:string|null){setDmPeer(peerId);setDmOpen(true);}
+  function openProfile(){setNewName(user?.name||"");setBioDraft(user?.bio||"");setPresenceDraft(user?.presence||"online");setProfileNotice("");setError("");setModal("profile");}
   async function updateMessage(e:FormEvent){
     e.preventDefault();if(!editingMessage||!editMessageText.trim()||!selected||!textChannelId)return;
     setBusy(true);setError("");
@@ -202,15 +203,35 @@ export function NovaApp(){
     <ServerRail servers={servers} selected={selected} onSelect={chooseServer} onCreate={()=>{setError("");setModal("create")}} onJoin={()=>{setError("");setModal("join")}}/>
     {sidebarOpen&&<button className="v2-mobile-backdrop" type="button" aria-label="Fechar lista de canais" onClick={()=>setSidebarOpen(false)}/>}
     <aside id="lc-sidebar" className={"v2-sidebar "+(sidebarOpen?"v2-sidebar-open":"")}>
-      <div className="v2-server-name"><strong>{selectedServer?.name||"Seus servidores"}</strong><ChevronDown size={17}/></div>
+      <div className="v2-server-name"><strong>{selectedServer?.name||"Seus servidores"}</strong>{selectedServer&&<button type="button" className="v3-section-action" title="Configurações do servidor" aria-label="Configurações do servidor" onClick={()=>setShowCommunity(true)}><Settings2 size={17}/></button>}</div>
       <div className="v2-channel-scroll">
-        {selectedServer?<><div className="v2-channel-section">CANAIS DE TEXTO</div><button type="button" className={"v2-channel "+(view==="text"?"active":"")} onClick={()=>{setView("text");setSidebarOpen(false)}}><Hash size={20}/><span>geral</span></button><div className="v2-channel-section">CANAIS DE VOZ</div><button type="button" className={"v2-channel "+(view==="voice"?"active":"")} onClick={()=>{setView("voice");setSidebarOpen(false)}}><Headphones size={19}/><span>Chamada de voz</span><span className="v2-channel-count">{selectedServer.member_count}/6</span></button></>:<div className="v2-sidebar-empty"><ServerIcon size={26}/><p>Crie seu primeiro servidor ou entre pelo código de convite.</p></div>}
+        {selectedServer?<>
+          <div className="v2-channel-section v3-channel-heading">CANAIS DE TEXTO{canManageChannels&&<button type="button" className="v3-section-action" title="Gerenciar canais" onClick={()=>setShowCommunity(true)}><Plus size={15}/></button>}</div>
+          {channels.filter(c=>c.kind==="text").map(c=><button key={c.id} type="button" className={"v2-channel "+(view==="text"&&c.id===textChannelId?"active":"")}
+            onClick={()=>{activeChannelRef.current=c.id;setTextChannelId(c.id);setView("text");setSidebarOpen(false);setEditingMessage(null)}}>
+            <Hash size={18}/><span>{c.name}</span>{c.is_private&&<Lock className="v3-channel-private" size={13}/>}
+          </button>)}
+          <div className="v2-channel-section v3-channel-heading">CANAIS DE VOZ{canManageChannels&&<button type="button" className="v3-section-action" title="Gerenciar canais de voz" onClick={()=>setShowCommunity(true)}><Plus size={15}/></button>}</div>
+          {channels.filter(c=>c.kind==="voice").map(c=><button key={c.id} type="button" className={"v2-channel "+(view==="voice"&&c.id===voiceChannelId?"active":"")}
+            onClick={()=>{setVoiceChannelId(c.id);setView("voice");setSidebarOpen(false);setCallChatOpen(false)}}>
+            <Headphones size={18}/><span>{c.name}</span>{c.is_private&&<Lock className="v3-channel-private" size={13}/>}
+          </button>)}
+          {channels.length===0&&<p className="v3-channel-list-empty">Carregando canais…</p>}
+        </>:<div className="v2-sidebar-empty"><ServerIcon size={26}/><p>Crie seu primeiro servidor ou entre pelo código de convite.</p></div>}
       </div>
       {voice&&<div className="v2-voice-mini"><span className="v2-online-dot"/><div><strong>Voz conectada</strong><small>{selectedServer?.name||"Chamada"}</small></div><button type="button" aria-label="Desligar" title="Desligar" onClick={()=>setVoice(null)}><PhoneOff size={17}/></button></div>}
-      <div className="v2-userbar"><Avatar name={user.name} src={user.avatar_data_url} badge={user.badge} size={39}/><div><strong>{user.name}</strong><small>{user.badge?badgeNames[user.badge]||"Perfil":"Minha conta"}</small></div><button type="button" aria-label="Editar perfil" title="Editar perfil" onClick={()=>{setNewName(user.name);setError("");setModal("profile")}}><Settings2 size={20}/></button></div>
+      <div className="v2-userbar"><Avatar name={user.name} src={user.avatar_data_url} badge={user.badge} size={39}/>
+        <div><strong>{user.name}</strong><small>{user.presence==="dnd"?"Não perturbe":user.presence==="idle"?"Ausente":user.presence==="invisible"?"Invisível":user.badge?badgeNames[user.badge]||"Perfil":"Disponível"}</small></div>
+        <button type="button" aria-label="Mensagens privadas" title="Mensagens privadas" onClick={()=>openDM(null)}><MessageCircle size={18}/></button>
+        <button type="button" aria-label="Editar perfil" title="Editar perfil" onClick={openProfile}><Settings2 size={20}/></button>
+      </div>
     </aside>
     <div className="v2-main">
-      <AppTopbar view={view} serverName={selectedServer?.name||"Bem-vindo ao LumaCall"} hasServer={Boolean(selectedServer)} sidebarOpen={sidebarOpen} lastCopied={lastCopied} onToggleSidebar={()=>setSidebarOpen(!sidebarOpen)} onCopyInvite={()=>void copyInvite()} onProfile={()=>{setNewName(user.name);setModal("profile")}}/>
+      <AppTopbar view={view} channelName={view==="text"?(selectedTextChannel?.name||"geral"):(selectedVoiceChannel?.name||"Voz")}
+        serverName={selectedServer?.name||"Bem-vindo ao LumaCall"} hasServer={Boolean(selectedServer)} sidebarOpen={sidebarOpen}
+        lastCopied={lastCopied} callActive={Boolean(voice&&voice.serverId===selected&&voice.channelId===voiceChannelId)}
+        onToggleSidebar={()=>setSidebarOpen(!sidebarOpen)} onCopyInvite={()=>void copyInvite()} onProfile={openProfile}
+        onSettings={()=>setShowCommunity(true)} onMessages={()=>openDM(null)} onToggleCallChat={()=>setCallChatOpen(v=>!v)}/>
       {error&&<div className="v2-banner" role="alert">{error}<button type="button" onClick={()=>setError("")}><X size={16}/></button></div>}
       {!selectedServer?<div className="v2-first-server"><div className="v2-first-icon"><ServerIcon size={37}/></div><h1>Um lugar só seu.</h1><p>Crie um servidor para conversar por texto, áudio ou vídeo com até seis pessoas.</p><button type="button" className="v2-primary" onClick={()=>setModal("create")}><Plus size={18}/> Criar servidor</button><button type="button" className="v2-secondary" onClick={()=>setModal("join")}>Entrar com convite</button></div>:
       <div className="v2-main-layout">
