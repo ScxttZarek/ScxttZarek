@@ -130,3 +130,14 @@ RETURNS boolean LANGUAGE sql STABLE AS $$
       ELSE false END))
  );
 $$;
+
+-- V3.1: server presentation and channel categories
+ALTER TABLE v2_servers ADD COLUMN IF NOT EXISTS icon_data_url text;
+CREATE TABLE IF NOT EXISTS v3_categories(
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ server_id uuid NOT NULL REFERENCES v2_servers(id) ON DELETE CASCADE,
+ name varchar(32) NOT NULL,
+ position int NOT NULL DEFAULT 0
+);
+CREATE UNIQUE INDEX IF NOT EXISTS v3_categories_unique_name ON v3_categories(server_id,lower(name));
+ALTER TABLE v3_channels ADD COLUMN IF NOT EXISTS category_id uuid REFERENCES v3_categories(id) ON DELETE SET NULL;
