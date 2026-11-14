@@ -103,9 +103,13 @@ BEGIN
  VALUES(NEW.id,'geral','text',0),(NEW.id,'Geral','voice',0) ON CONFLICT DO NOTHING;
  RETURN NEW;
 END $$;
-DROP TRIGGER IF EXISTS v3_server_default_channels ON v2_servers;
-CREATE TRIGGER v3_server_default_channels AFTER INSERT ON v2_servers
- FOR EACH ROW EXECUTE FUNCTION v3_seed_channels();
+DO $
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgname='v3_server_default_channels' AND tgrelid='v2_servers'::regclass) THEN
+  CREATE TRIGGER v3_server_default_channels AFTER INSERT ON v2_servers
+   FOR EACH ROW EXECUTE FUNCTION v3_seed_channels();
+ END IF;
+END $;
 CREATE OR REPLACE FUNCTION v3_can_read_channel(p_channel uuid,p_user uuid)
 RETURNS boolean LANGUAGE sql STABLE AS $$
  SELECT EXISTS (
