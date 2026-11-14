@@ -5,13 +5,18 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { Hash, Headphones, Plus, Settings2, LogOut, UserRound, Camera, Check, Copy, Send, Users, ArrowRight, ShieldCheck, X, Mic, PhoneOff, Menu, ChevronDown, Server as ServerIcon, ImagePlus } from "lucide-react";
 import { VoiceRoom } from "./voice";
 import { InstallLumaCall } from "./install-app";
+import { CommunityPanel } from "../v3/community-panel";
+import { DMPanel } from "../v3/dm-panel";
+import { CallChatPanel } from "../v3/call-chat-panel";
+import { apiV3, updateError, type Channel, type Reaction } from "../v3/client";
+import { Edit3, Trash2, SmilePlus, Lock, MessageCircle } from "lucide-react";
 
-type User={id:string;name:string;name_key:string;avatar_data_url:string|null;badge:string|null};
+type User={id:string;name:string;name_key:string;avatar_data_url:string|null;badge:string|null;bio:string;presence:string};
 type Server={id:string;name:string;invite_code:string;member_count:number;role:string};
-type Member={id:string;name:string;badge:string|null;avatar_data_url:string|null;role:string};
-type Message={id:string;user_id:string;name:string;badge:string|null;avatar_data_url:string|null;content:string;created_at:string};
+type Member={id:string;name:string;badge:string|null;avatar_data_url:string|null;role:string;bio?:string;presence?:string};
+type Message={id:string;user_id:string;name:string;badge:string|null;avatar_data_url:string|null;content:string;created_at:string;edited_at?:string|null;deleted_at?:string|null};
 type Modal="create"|"join"|"profile"|null;
-type Voice={token:string;serverUrl:string;serverId:string};
+type Voice={token:string;serverUrl:string;serverId:string;channelId:string};
 async function api<T>(url:string,method="GET",data?:unknown):Promise<T>{
   const res=await fetch(url,{method,headers:data===undefined?undefined:{"content-type":"application/json"},body:data===undefined?undefined:JSON.stringify(data),credentials:"same-origin",cache:"no-store"});
   const json=await res.json().catch(()=>({error:"O servidor não respondeu."}));
@@ -40,11 +45,31 @@ export function NovaApp(){
   const [voice,setVoice]=useState<Voice|null>(null);
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [lastCopied,setLastCopied]=useState(false);
+  const [channels,setChannels]=useState<Channel[]>([]);
+  const [textChannelId,setTextChannelId]=useState<string|null>(null);
+  const [voiceChannelId,setVoiceChannelId]=useState<string|null>(null);
+  const [canManageChannels,setCanManageChannels]=useState(false);
+  const [showCommunity,setShowCommunity]=useState(false);
+  const [dmOpen,setDmOpen]=useState(false);
+  const [dmPeer,setDmPeer]=useState<string|null>(null);
+  const [callChatOpen,setCallChatOpen]=useState(false);
+  const [reactions,setReactions]=useState<Reaction[]>([]);
+  const [editingMessage,setEditingMessage]=useState<string|null>(null);
+  const [editMessageText,setEditMessageText]=useState("");
+  const [reactionMenu,setReactionMenu]=useState<string|null>(null);
+  const [bioDraft,setBioDraft]=useState("");
+  const [presenceDraft,setPresenceDraft]=useState("online");
+  const [currentSecret,setCurrentSecret]=useState("");
+  const [nextSecret,setNextSecret]=useState("");
+  const [profileNotice,setProfileNotice]=useState("");
   const messageScrollRef=useRef<HTMLDivElement>(null);
   const followMessagesRef=useRef(true);
   const activeServerRef=useRef<string|null>(null);
+  const activeChannelRef=useRef<string|null>(null);
   const contentRequestRef=useRef(0);
   const selectedServer=servers.find(s=>s.id===selected);
+  const selectedTextChannel=channels.find(c=>c.id===textChannelId&&c.kind==="text");
+  const selectedVoiceChannel=channels.find(c=>c.id===voiceChannelId&&c.kind==="voice");
   async function boot(){try{const x=await api<{user:User|null}>("/api/v2/auth");setUser(x.user);}catch{setSetupError(true);}finally{setLoading(false);}}
   useEffect(()=>{void boot();},[]);
   async function loadServers(){
@@ -52,26 +77,43 @@ export function NovaApp(){
     catch(e){setError((e as Error).message);}
   }
   useEffect(()=>{if(user)void loadServers();else{setServers([]);setSelected(null)}},[user?.id]);
-  async function loadContent(serverId:string) {
-    const requestId=++contentRequestRef.current;
-    const id=encodeURIComponent(serverId);
+  async function loadChannels(serverId:string){
     try{
-      const [a,b]=await Promise.all([api<{members:Member[]}>("/api/v2/members?serverId="+id),api<{messages:Message[]}>("/api/v2/messages?serverId="+id)]);
-      if(activeServerRef.current!==serverId || requestId!==contentRequestRef.current)return;
-      setMembers(a.members);setMessages(b.messages);
+      const data=await apiV3<{channels:Channel[];canManage:boolean}>("/api/v3/channels?serverId="+encodeURIComponent(serverId));
+      if(activeServerRef.current!==serverId)return;
+      setChannels(data.channels);setCanManageChannels(data.canManage);
+      setTextChannelId(current=>data.channels.some(c=>c.id===current&&c.kind==="text")?current:data.channels.find(c=>c.kind==="text")?.id||null);
+      setVoiceChannelId(current=>data.channels.some(c=>c.id===current&&c.kind==="voice")?current:data.channels.find(c=>c.kind==="voice")?.id||null);
+    }catch(e){if(activeServerRef.current===serverId)setError(updateError(e));}
+  }
+  async function loadContent(serverId:string,channelId:string){
+    const requestId=++contentRequestRef.current;
+    try{
+      const [membersData,chatData]=await Promise.all([
+        api<{members:Member[]}>("/api/v2/members?serverId="+encodeURIComponent(serverId)),
+        apiV3<{messages:Message[];reactions:Reaction[]}>("/api/v3/messages?channelId="+encodeURIComponent(channelId))
+      ]);
+      if(activeServerRef.current!==serverId||activeChannelRef.current!==channelId||requestId!==contentRequestRef.current)return;
+      setMembers(membersData.members);setMessages(chatData.messages);setReactions(chatData.reactions);
     }catch(e){
-      if(activeServerRef.current===serverId && requestId===contentRequestRef.current)setError((e as Error).message);
+      if(activeServerRef.current===serverId&&activeChannelRef.current===channelId&&requestId===contentRequestRef.current)setError(updateError(e));
     }
   }
   useEffect(()=>{
     activeServerRef.current=selected;
-    contentRequestRef.current++;
-    followMessagesRef.current=true;
-    if(!selected){setMembers([]);setMessages([]);return;}
-    void loadContent(selected);
-    const timer=window.setInterval(()=>void loadContent(selected),4500);
-    return()=>{window.clearInterval(timer);contentRequestRef.current++;};
+    activeChannelRef.current=null;contentRequestRef.current++;followMessagesRef.current=true;
+    setChannels([]);setTextChannelId(null);setVoiceChannelId(null);setMembers([]);setMessages([]);setReactions([]);
+    if(selected)void loadChannels(selected);
   },[selected]);
+  useEffect(()=>{
+    activeChannelRef.current=textChannelId;
+    contentRequestRef.current++;followMessagesRef.current=true;
+    setMessages([]);setReactions([]);
+    if(!selected||!textChannelId)return;
+    void loadContent(selected,textChannelId);
+    const timer=window.setInterval(()=>void loadContent(selected,textChannelId),4500);
+    return()=>{window.clearInterval(timer);contentRequestRef.current++;};
+  },[selected,textChannelId]);
   useEffect(()=>{
     if(view!=="text"||!followMessagesRef.current)return;
     const scroll=messageScrollRef.current;
@@ -91,7 +133,7 @@ export function NovaApp(){
     activeServerRef.current=id;
     contentRequestRef.current++;
     followMessagesRef.current=true;
-    setSelected(id);setView("text");setSidebarOpen(false);setVoice(null);setMessages([]);
+    setSelected(id);setView("text");setSidebarOpen(false);setVoice(null);setCallChatOpen(false);setMessages([]);
   }
   async function createServer(e:FormEvent){e.preventDefault();setBusy(true);setError("");
     try{const out=await api<{id:string}>("/api/v2/servers","POST",{name:newServer});setModal(null);setNewServer("");await loadServers();setSelected(out.id);}
@@ -102,15 +144,16 @@ export function NovaApp(){
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
   async function send(e:FormEvent){e.preventDefault();if(!selected||!draft.trim()||busy)return;const text=draft.trim();setBusy(true);setError("");
-    try{await api("/api/v2/messages","POST",{serverId:selected,content:text});setDraft("");followMessagesRef.current=true;await loadContent(selected);}
+    if(!textChannelId)return;
+    try{await apiV3("/api/v3/messages","POST",{channelId:textChannelId,content:text});setDraft("");followMessagesRef.current=true;await loadContent(selected,textChannelId);}
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
-  async function joinVoice(){if(!selected||busy)return;setBusy(true);setError("");
-    try{const out=await api<{token:string;serverUrl:string}>("/api/v2/voice","POST",{serverId:selected});setVoice({serverId:selected,token:out.token,serverUrl:out.serverUrl});setView("voice");}
+  async function joinVoice(){if(!selected||!voiceChannelId||busy)return;setBusy(true);setError("");
+    try{const out=await api<{token:string;serverUrl:string}>("/api/v3/voice","POST",{channelId:voiceChannelId});setVoice({serverId:selected,channelId:voiceChannelId,token:out.token,serverUrl:out.serverUrl});setView("voice");}
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
   async function updateProfile(e:FormEvent){e.preventDefault();setBusy(true);setError("");
-    try{const out=await api<{user:User}>("/api/v2/profile","PATCH",{name:newName});setUser(out.user);setModal(null);}
+    try{const out=await api<{user:User}>("/api/v2/profile","PATCH",{name:newName,bio:bioDraft,presence:presenceDraft});setUser(out.user);setModal(null);setProfileNotice("");}
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
   async function updatePhoto(file?:File){if(!file)return;if(!file.type.startsWith("image/")){setError("Escolha uma imagem.");return;}
@@ -125,8 +168,31 @@ export function NovaApp(){
       const url=canvas.toDataURL("image/webp",0.78);
       if(url.length>160000)throw Error("Imagem muito grande. Escolha uma foto mais simples.");
       const result=await api<{user:User}>("/api/v2/profile","PATCH",{avatar:url});
-      setUser(result.user);if(selected)void loadContent(selected);
+      setUser(result.user);if(selected&&textChannelId)void loadContent(selected,textChannelId);
     }catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
+  }
+  function openDM(peerId:string|null){setDmPeer(peerId);setDmOpen(true);}
+  async function updateMessage(e:FormEvent){
+    e.preventDefault();if(!editingMessage||!editMessageText.trim()||!selected||!textChannelId)return;
+    setBusy(true);setError("");
+    try{await apiV3("/api/v3/messages","PATCH",{id:editingMessage,content:editMessageText});setEditingMessage(null);await loadContent(selected,textChannelId);}
+    catch(e){setError(updateError(e));}finally{setBusy(false);}
+  }
+  async function deleteMessage(id:string){
+    if(!selected||!textChannelId||!window.confirm("Excluir esta mensagem?"))return;
+    try{await apiV3("/api/v3/messages","DELETE",{id});await loadContent(selected,textChannelId);}
+    catch(e){setError(updateError(e));}
+  }
+  async function reactMessage(id:string,emoji:string){
+    if(!selected||!textChannelId)return;
+    try{await apiV3("/api/v3/messages","POST",{action:"reaction",messageId:id,emoji});setReactionMenu(null);await loadContent(selected,textChannelId);}
+    catch(e){setError(updateError(e));}
+  }
+  async function changeSecret(e:FormEvent){
+    e.preventDefault();if(!currentSecret||nextSecret.length<8)return;
+    setBusy(true);setError("");setProfileNotice("");
+    try{await apiV3("/api/v3/security","POST",{action:"change-secret",current:currentSecret,next:nextSecret});setProfileNotice("Código secreto alterado. Outras sessões foram encerradas.");setCurrentSecret("");setNextSecret("");}
+    catch(e){setError(updateError(e));}finally{setBusy(false);}
   }
   async function copyInvite(){if(!selectedServer)return;try{await navigator.clipboard.writeText(selectedServer.invite_code);setLastCopied(true);window.setTimeout(()=>setLastCopied(false),1700);}catch{setError("Não foi possível copiar. O código é "+selectedServer.invite_code)}}
   if(loading)return <div className="v2-loading"><Brand/><p>Carregando a nova versão...</p></div>;
