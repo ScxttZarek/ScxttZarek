@@ -238,18 +238,57 @@ export function NovaApp(){
         <div className="v2-central">
           <section className={view==="text"?"v2-chat":"v2-chat v2-is-hidden"}>
             <div className="v2-message-scroll" ref={messageScrollRef} onScroll={observeChatScroll}>
-              {messages.length===0&&<div className="v2-chat-welcome"><div><Hash size={35}/></div><h2>Bem-vindo ao #geral</h2><p>Este é o início das conversas em {selectedServer.name}.</p></div>}
-              {messages.map(m=><article key={m.id} className="v2-message"><Avatar name={m.name} src={m.avatar_data_url} badge={m.badge} size={42}/><div className="v2-message-content"><div className="v2-message-meta"><strong>{m.name}</strong><Badge badge={m.badge}/><time>{new Date(m.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</time></div><p>{m.content}</p></div></article>)}
+              {messages.length===0&&<div className="v2-chat-welcome"><div><Hash size={35}/></div><h2>Bem-vindo ao #{selectedTextChannel?.name||"geral"}</h2><p>Este é o início das conversas em {selectedServer.name}.</p></div>}
+              {messages.map(m=><article key={m.id} className="v2-message">
+                <Avatar name={m.name} src={m.avatar_data_url} badge={m.badge} size={42}/>
+                <div className="v2-message-content">
+                  <div className="v2-message-meta">
+                    <strong>{m.name}</strong><Badge badge={m.badge}/>
+                    <time>{new Date(m.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}{m.edited_at?" · editada":""}</time>
+                    {!m.deleted_at&&<div className="v3-message-actions">
+                      <button type="button" title="Reagir" aria-label="Reagir à mensagem" onClick={()=>setReactionMenu(reactionMenu===m.id?null:m.id)}><SmilePlus size={14}/></button>
+                      {m.user_id===user.id&&<button type="button" title="Editar" aria-label="Editar mensagem" onClick={()=>{setEditingMessage(m.id);setEditMessageText(m.content)}}><Edit3 size={14}/></button>}
+                      {(m.user_id===user.id||selectedServer.role==="owner")&&<button type="button" title="Excluir" aria-label="Excluir mensagem" onClick={()=>void deleteMessage(m.id)}><Trash2 size={14}/></button>}
+                    </div>}
+                  </div>
+                  {editingMessage===m.id?<form className="v3-edit-form" onSubmit={e=>void updateMessage(e)}>
+                    <textarea aria-label="Editar mensagem" maxLength={2000} required value={editMessageText} onChange={e=>setEditMessageText(e.target.value)}/>
+                    <button type="submit" disabled={busy}>Salvar</button><button type="button" onClick={()=>setEditingMessage(null)}>Cancelar</button>
+                  </form>:<p>{m.deleted_at?"Mensagem excluída":m.content}</p>}
+                  {!m.deleted_at&&<>
+                   {reactionMenu===m.id&&<div className="v3-message-reactions" aria-label="Escolher reação">
+                     {["👍","❤️","😂","😮","😢","🔥","👀","🎉"].map(emoji=><button type="button" key={emoji} title={"Reagir com "+emoji} onClick={()=>void reactMessage(m.id,emoji)}>{emoji}</button>)}
+                   </div>}
+                   <div className="v3-message-reactions">
+                    {[...new Set(reactions.filter(r=>r.message_id===m.id).map(r=>r.emoji))].map(emoji=>{
+                     const grouped=reactions.filter(r=>r.message_id===m.id&&r.emoji===emoji);
+                     return <button key={emoji} type="button" className={grouped.some(r=>r.user_id===user.id)?"mine":""} title={"Reagir com "+emoji}
+                       onClick={()=>void reactMessage(m.id,emoji)}>{emoji} <span>{grouped.length}</span></button>;
+                    })}
+                   </div>
+                  </>}
+                </div>
+              </article>)}
 
             </div>
-            <form className="v2-composer" onSubmit={send}><textarea aria-label="Mensagem no geral" maxLength={2000} placeholder="Conversar em #geral" rows={2} value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();e.currentTarget.form?.requestSubmit()}}}/><button type="submit" title="Enviar" aria-label="Enviar" disabled={!draft.trim()||busy}><Send size={19}/></button></form>
+            <form className="v2-composer" onSubmit={send}><textarea aria-label={"Mensagem no canal "+(selectedTextChannel?.name||"geral")} maxLength={2000} placeholder={"Conversar em #"+(selectedTextChannel?.name||"geral")} rows={2} value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();e.currentTarget.form?.requestSubmit()}}}/><button type="submit" title="Enviar" aria-label="Enviar" disabled={!draft.trim()||busy||!textChannelId}><Send size={19}/></button></form>
           </section>
-          {voice&&voice.serverId===selected&&<VoiceRoom token={voice.token} url={voice.serverUrl} members={members} onLeave={()=>setVoice(null)} visible={view==="voice"}/>}
-          {view==="voice"&&!voice&&<div className="v2-join-voice"><Headphones size={46}/><h2>Chamada de voz</h2><p>Entre com o microfone e a câmera desligados. Ative quando quiser.</p><button type="button" className="v2-primary" onClick={()=>void joinVoice()} disabled={busy}><Mic size={18}/>{busy?"Conectando...":"Entrar na chamada"}</button></div>}
+          {voice&&voice.serverId===selected&&voice.channelId===voiceChannelId&&<VoiceRoom token={voice.token} url={voice.serverUrl} members={members} onLeave={()=>{setVoice(null);setCallChatOpen(false)}} visible={view==="voice"}/>}
+          {view==="voice"&&voice&&voice.serverId===selected&&voice.channelId===voiceChannelId&&callChatOpen&&<CallChatPanel serverId={selectedServer.id} onClose={()=>setCallChatOpen(false)}/>}
+
+          {view==="voice"&&(!voice||voice.channelId!==voiceChannelId)&&<div className="v2-join-voice">
+            <Headphones size={46}/><h2>{selectedVoiceChannel?.name||"Chamada de voz"}</h2>
+            <p>Entre com o microfone e a câmera desligados. Ative quando quiser.</p>
+            <button type="button" className="v2-primary" onClick={()=>void joinVoice()} disabled={busy||!voiceChannelId}><Mic size={18}/>{busy?"Conectando...":"Entrar na chamada"}</button>
+          </div>}
         </div>
-        <MembersPanel members={members}/>
+        <MembersPanel members={members} currentUserId={user.id} onMessage={id=>openDM(id)}/>
       </div>}
     </div>
+    {showCommunity&&selected&&<CommunityPanel serverId={selected} members={members} onClose={()=>setShowCommunity(false)}
+      onUpdated={()=>{void loadChannels(selected);if(textChannelId)void loadContent(selected,textChannelId)}}
+      onOpenDm={id=>openDM(id)}/>}
+    {dmOpen&&<DMPanel userId={user.id} initialPeerId={dmPeer} onClose={()=>{setDmOpen(false);setDmPeer(null)}}/>}
     {modal&&<div className="v2-modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setModal(null)}}><section role="dialog" aria-modal="true" aria-label={modal==="profile"?"Meu perfil":modal==="create"?"Criar servidor":"Entrar em servidor"} className="v2-dialog"><button type="button" className="v2-modal-close" aria-label="Fechar" onClick={()=>setModal(null)}><X size={19}/></button>{modal==="create"?<><h2>Criar seu servidor</h2><p>Seu espaço privado, com até 6 membros.</p><form className="v2-form" onSubmit={createServer}><label>Nome do servidor<input required minLength={3} maxLength={45} value={newServer} onChange={e=>setNewServer(e.target.value)} placeholder="Meu servidor"/></label><button className="v2-primary" disabled={busy} type="submit"><Plus size={16}/>Criar servidor</button></form></>:modal==="join"?<><h2>Entrar em um servidor</h2><p>Peça o código de convite ao dono.</p><form className="v2-form" onSubmit={joinServer}><label>Código de convite<input value={invite} onChange={e=>setInvite(e.target.value.toUpperCase())} placeholder="12 caracteres" maxLength={12} required/></label><button className="v2-primary" type="submit" disabled={busy}>Entrar no servidor</button></form></>:<><h2>Seu perfil</h2><p>Foto e nome ficam salvos na sua conta.</p><div className="v2-profile-avatar"><Avatar name={user.name} src={user.avatar_data_url} badge={user.badge} size={90}/><label className="v2-upload"><ImagePlus size={17}/> Mudar foto<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>void updatePhoto(e.target.files?.[0])} hidden/></label></div><form className="v2-form" onSubmit={updateProfile}><label>Nome de usuário<input value={newName} onChange={e=>setNewName(e.target.value)} minLength={3} maxLength={24} required/></label><Badge badge={user.badge}/><button type="submit" disabled={busy} className="v2-primary"><Check size={16}/>Salvar perfil</button></form><button type="button" className="v2-logout" onClick={()=>void logout()}><LogOut size={16}/> Sair da conta</button></>}{error&&<p className="v2-error" role="alert">{error}</p>}</section></div>}
   </div>;
 }
