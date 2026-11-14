@@ -40,7 +40,10 @@ export function NovaApp(){
   const [voice,setVoice]=useState<Voice|null>(null);
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [lastCopied,setLastCopied]=useState(false);
-  const bottomRef=useRef<HTMLDivElement>(null);
+  const messageScrollRef=useRef<HTMLDivElement>(null);
+  const followMessagesRef=useRef(true);
+  const activeServerRef=useRef<string|null>(null);
+  const contentRequestRef=useRef(0);
   const selectedServer=servers.find(s=>s.id===selected);
   async function boot(){try{const x=await api<{user:User|null}>("/api/v2/auth");setUser(x.user);}catch{setSetupError(true);}finally{setLoading(false);}}
   useEffect(()=>{void boot();},[]);
@@ -50,20 +53,46 @@ export function NovaApp(){
   }
   useEffect(()=>{if(user)void loadServers();else{setServers([]);setSelected(null)}},[user?.id]);
   async function loadContent(serverId:string) {
+    const requestId=++contentRequestRef.current;
     const id=encodeURIComponent(serverId);
     try{
       const [a,b]=await Promise.all([api<{members:Member[]}>("/api/v2/members?serverId="+id),api<{messages:Message[]}>("/api/v2/messages?serverId="+id)]);
+      if(activeServerRef.current!==serverId || requestId!==contentRequestRef.current)return;
       setMembers(a.members);setMessages(b.messages);
-    }catch(e){setError((e as Error).message);}
+    }catch(e){
+      if(activeServerRef.current===serverId && requestId===contentRequestRef.current)setError((e as Error).message);
+    }
   }
-  useEffect(()=>{if(!selected){setMembers([]);setMessages([]);return;}void loadContent(selected);const timer=window.setInterval(()=>void loadContent(selected),4500);return()=>window.clearInterval(timer)},[selected]);
-  useEffect(()=>{if(view==="text")bottomRef.current?.scrollIntoView({block:"end"});},[messages.length,view,selected]);
+  useEffect(()=>{
+    activeServerRef.current=selected;
+    contentRequestRef.current++;
+    followMessagesRef.current=true;
+    if(!selected){setMembers([]);setMessages([]);return;}
+    void loadContent(selected);
+    const timer=window.setInterval(()=>void loadContent(selected),4500);
+    return()=>{window.clearInterval(timer);contentRequestRef.current++;};
+  },[selected]);
+  useEffect(()=>{
+    if(view!=="text"||!followMessagesRef.current)return;
+    const scroll=messageScrollRef.current;
+    if(scroll)scroll.scrollTop=scroll.scrollHeight;
+  },[messages.length,view,selected]);
+  function observeChatScroll(){
+    const node=messageScrollRef.current;
+    if(node)followMessagesRef.current=node.scrollHeight-node.scrollTop-node.clientHeight<=100;
+  }
   async function submitAuth(e:FormEvent){e.preventDefault();setBusy(true);setError("");
     try{await api("/api/v2/auth","POST",{action:authMode,name,secret});setSecret("");await boot();}
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
   async function logout(){try{await api("/api/v2/auth","DELETE");setVoice(null);setUser(null);setName("");setSecret("");setView("text");setModal(null);}catch(e){setError((e as Error).message);}}
-  function chooseServer(id:string){setSelected(id);setView("text");setSidebarOpen(false);setVoice(null);setMessages([]);}
+  function chooseServer(id:string){
+    if(id===selected){setView("text");setSidebarOpen(false);return;}
+    activeServerRef.current=id;
+    contentRequestRef.current++;
+    followMessagesRef.current=true;
+    setSelected(id);setView("text");setSidebarOpen(false);setVoice(null);setMessages([]);
+  }
   async function createServer(e:FormEvent){e.preventDefault();setBusy(true);setError("");
     try{const out=await api<{id:string}>("/api/v2/servers","POST",{name:newServer});setModal(null);setNewServer("");await loadServers();setSelected(out.id);}
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
@@ -73,7 +102,7 @@ export function NovaApp(){
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
   async function send(e:FormEvent){e.preventDefault();if(!selected||!draft.trim()||busy)return;const text=draft.trim();setBusy(true);setError("");
-    try{await api("/api/v2/messages","POST",{serverId:selected,content:text});setDraft("");await loadContent(selected);}
+    try{await api("/api/v2/messages","POST",{serverId:selected,content:text});setDraft("");followMessagesRef.current=true;await loadContent(selected);}
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
   async function joinVoice(){if(!selected||busy)return;setBusy(true);setError("");
@@ -121,10 +150,10 @@ export function NovaApp(){
       <div className="v2-main-layout">
         <div className="v2-central">
           <section className={view==="text"?"v2-chat":"v2-chat v2-is-hidden"}>
-            <div className="v2-message-scroll">
+            <div className="v2-message-scroll" ref={messageScrollRef} onScroll={observeChatScroll}>
               {messages.length===0&&<div className="v2-chat-welcome"><div><Hash size={35}/></div><h2>Bem-vindo ao #geral</h2><p>Este é o início das conversas em {selectedServer.name}.</p></div>}
               {messages.map(m=><article key={m.id} className="v2-message"><Avatar name={m.name} src={m.avatar_data_url} badge={m.badge} size={42}/><div className="v2-message-content"><div className="v2-message-meta"><strong>{m.name}</strong><Badge badge={m.badge}/><time>{new Date(m.created_at).toLocaleString("pt-BR",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</time></div><p>{m.content}</p></div></article>)}
-              <div ref={bottomRef}/>
+
             </div>
             <form className="v2-composer" onSubmit={send}><textarea aria-label="Mensagem no geral" maxLength={2000} placeholder="Conversar em #geral" rows={2} value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();e.currentTarget.form?.requestSubmit()}}}/><button type="submit" title="Enviar" aria-label="Enviar" disabled={!draft.trim()||busy}><Send size={19}/></button></form>
           </section>

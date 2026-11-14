@@ -58,3 +58,10 @@ At audit time: 9 users, 4 servers, 5 messages. No data mutation is authorized fo
 ## Test and rollback protocol
 
 Use a non-production preview deployment. Confirm Next.js and TypeScript build logs, run UI smoke tests as available, log any untested behavior. Roll back by reverting the preview branch commit; the production main branch stays unchanged until separately approved.
+
+## Phase 3 — Chat scrolling / stale request hardening
+
+- Chat auto-scrolls only while the user is already near the newest messages, or after explicitly sending a message.
+- Polling requests use a monotonically increasing request identifier and server identity check, preventing stale responses from another selected server from overwriting the current chat.
+- Clicking the already selected server no longer unnecessarily resets chat data or disconnects an active call.
+- No backend, database or LiveKit source changes are included in this commit.
