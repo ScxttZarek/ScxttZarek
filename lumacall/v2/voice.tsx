@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { reservedAvatarForBadge } from "@/lib/reserved-profile";
-import { LiveKitRoom, RoomAudioRenderer, useLocalParticipant, useParticipants, useRoomContext, useTracks, VideoTrack, isTrackReference } from "@livekit/components-react";
-import { Track } from "livekit-client";
+import { LiveKitRoom, RoomAudioRenderer, useConnectionState, useLocalParticipant, useParticipants, useRoomContext, useTracks, VideoTrack, isTrackReference } from "@livekit/components-react";
+import { ConnectionState, Track } from "livekit-client";
 import { Camera, CameraOff, Mic, MicOff, MonitorUp, PhoneOff, Play, X, Radio, Square, Maximize2, Minimize2 } from "lucide-react";
 
 type Member = { id:string; name:string; badge:string|null; avatar_data_url:string|null };
@@ -14,6 +14,14 @@ function Avatar({ name, src, badge, size=70 }:{ name:string; src?:string|null; b
 function VoiceInside({members,onLeave}:{members:Member[];onLeave:()=>void}){
   const room=useRoomContext();
   const participants=useParticipants();
+  const connectionState=useConnectionState(room);
+  const connectionLabel=connectionState===ConnectionState.Connected
+    ? participants.length+"/6 conectados"
+    : connectionState===ConnectionState.Connecting
+      ? "Conectando…"
+      : connectionState===ConnectionState.Disconnected
+        ? "Desconectado"
+        : "Reconectando…";
   const {localParticipant,isMicrophoneEnabled,isCameraEnabled,isScreenShareEnabled}=useLocalParticipant();
   const tracks=useTracks([Track.Source.Camera,Track.Source.ScreenShare],{onlySubscribed:false}).filter(isTrackReference);
   const screens=tracks.filter(track=>track.source===Track.Source.ScreenShare);
@@ -50,10 +58,17 @@ function VoiceInside({members,onLeave}:{members:Member[];onLeave:()=>void}){
     try{await fn();}catch{setError("Não foi possível alterar a transmissão ou o dispositivo. Verifique as permissões.");}finally{setBusy(false);}
   }
   const stopSharing=()=>void act(()=>localParticipant.setScreenShareEnabled(false));
+  function toggleSharing(){
+    if(!isScreenShareEnabled && (typeof navigator==="undefined" || typeof navigator.mediaDevices?.getDisplayMedia!=="function")){
+      setError("Este navegador não permite compartilhar a tela. Você ainda pode assistir às transmissões.");
+      return;
+    }
+    void act(()=>localParticipant.setScreenShareEnabled(!isScreenShareEnabled));
+  }
   return <section className="v2-voice-body" aria-label="Chamada de voz">
     <header className="v2-voice-heading">
       <div className="v2-voice-heading-label"><h2>Chamada de voz</h2><p>Assista às transmissões quando quiser</p></div>
-      <span className="v2-online">{participants.length}/6 conectados</span>
+      <span className={"v2-online "+(connectionState===ConnectionState.Connected?"":"v2-online-transition")} role="status" aria-live="polite">{connectionLabel}</span>
     </header>
     {isScreenShareEnabled&&<div className="v2-share-status">
       <span><Radio size={16}/> Você está compartilhando a tela</span>
@@ -97,7 +112,7 @@ function VoiceInside({members,onLeave}:{members:Member[];onLeave:()=>void}){
     <footer className="v2-voice-controls" aria-label="Controles da chamada">
       <button type="button" disabled={busy} className={!isMicrophoneEnabled?"v2-muted":""} title={isMicrophoneEnabled?"Desligar microfone":"Ligar microfone"} aria-label="Alternar microfone" onClick={()=>void act(()=>localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled))}>{isMicrophoneEnabled?<Mic/>:<MicOff/>}</button>
       <button type="button" disabled={busy} className={!isCameraEnabled?"v2-muted":""} title={isCameraEnabled?"Desligar câmera":"Ligar câmera"} aria-label="Alternar câmera" onClick={()=>void act(()=>localParticipant.setCameraEnabled(!isCameraEnabled))}>{isCameraEnabled?<Camera/>:<CameraOff/>}</button>
-      <button type="button" disabled={busy} className={isScreenShareEnabled?"v2-sharing":""} title={isScreenShareEnabled?"Parar transmissão":"Compartilhar tela"} aria-label={isScreenShareEnabled?"Parar transmissão":"Compartilhar tela"} aria-pressed={isScreenShareEnabled} onClick={()=>void act(()=>localParticipant.setScreenShareEnabled(!isScreenShareEnabled))}>{isScreenShareEnabled?<Square fill="currentColor"/>:<MonitorUp/>}</button>
+      <button type="button" disabled={busy} className={isScreenShareEnabled?"v2-sharing":""} title={isScreenShareEnabled?"Parar transmissão":"Compartilhar tela"} aria-label={isScreenShareEnabled?"Parar transmissão":"Compartilhar tela"} aria-pressed={isScreenShareEnabled} onClick={toggleSharing}>{isScreenShareEnabled?<Square fill="currentColor"/>:<MonitorUp/>}</button>
       <button type="button" className="v2-hangup" title="Desligar chamada" aria-label="Desligar chamada" onClick={()=>{void room.disconnect();onLeave();}}><PhoneOff/></button>
     </footer>
   </section>;

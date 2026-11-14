@@ -65,3 +65,10 @@ Use a non-production preview deployment. Confirm Next.js and TypeScript build lo
 - Polling requests use a monotonically increasing request identifier and server identity check, preventing stale responses from another selected server from overwriting the current chat.
 - Clicking the already selected server no longer unnecessarily resets chat data or disconnects an active call.
 - No backend, database or LiveKit source changes are included in this commit.
+
+## Phase 4 — Connection-state UI and browser capture capability
+
+- Voice status now reads the actual LiveKit room connection state instead of always showing the participant count as connected.
+- The screen-share action checks whether the browser provides `getDisplayMedia` before attempting to start capture, and shows a Portuguese explanation otherwise.
+- The existing broadcaster/viewer and control dock behavior remain unchanged.
+- Real-device, two-session media regression tests are **not yet performed** and remain a release blocker for claiming full call stability.
