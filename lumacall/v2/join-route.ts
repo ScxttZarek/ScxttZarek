@@ -8,6 +8,8 @@ export async function POST(request:Request){
     const user=await getUser();if(!user)return asJson("Entre na conta.",401);
     const {code}=await request.json() as {code?:unknown};
     if(typeof code!=="string"||!/^([a-f0-9]{12})$/i.test(code.trim()))return asJson("Código de convite inválido.");
+    const banned=await db("SELECT 1 FROM v3_bans b JOIN v2_servers s ON s.id=b.server_id WHERE s.invite_code=$1 AND b.user_id=$2 LIMIT 1",[code.toUpperCase(),user.id]);
+    if(banned.length)return asJson("Você está banido deste servidor.",403);
     const row=await db<{result:string}>("SELECT v2_join_server($1,$2::uuid) AS result",[code,user.id]);
     const result=row[0]?.result||"NOT_FOUND";
     if(result==="FULL")return asJson("Servidor lotado: máximo de 6 pessoas.",409);

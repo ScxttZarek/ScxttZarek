@@ -5,7 +5,7 @@ export async function PATCH(request:Request){
   if(!verifyOrigin(request))return asJson("Origem inválida.",403);
   try{
     const user=await getUser();if(!user)return asJson("Entre na sua conta.",401);
-    const body=await request.json() as {name?:unknown;avatar?:unknown};
+    const body=await request.json() as {name?:unknown;avatar?:unknown;bio?:unknown;presence?:unknown};
     if(Object.prototype.hasOwnProperty.call(body,"name")){
       const n=normalizedName(body.name);if(!n)return asJson("Nome inválido.");
       // A restrição restante é a unicidade global no índice name_key do banco.
@@ -21,6 +21,14 @@ export async function PATCH(request:Request){
         if(bytes.length>120*1024||bytes.toString("ascii",0,4)!=="RIFF"||bytes.toString("ascii",8,12)!=="WEBP")return asJson("Arquivo de foto inválido.");
         await db("UPDATE v2_users SET avatar_data_url=$1 WHERE id=$2",[value,user.id]);
       }
+    }
+    if(Object.prototype.hasOwnProperty.call(body,"bio")){
+      if(typeof body.bio!=="string"||body.bio.length>180)return asJson("A biografia deve ter até 180 caracteres.");
+      await db("UPDATE v2_users SET bio=$1 WHERE id=$2",[body.bio.trim(),user.id]);
+    }
+    if(Object.prototype.hasOwnProperty.call(body,"presence")){
+      if(!["online","idle","dnd","invisible"].includes(String(body.presence)))return asJson("Status inválido.");
+      await db("UPDATE v2_users SET presence=$1 WHERE id=$2",[body.presence,user.id]);
     }
     const fresh=await getUser();return Response.json({user:fresh});
   }catch{return asJson("Não foi possível salvar o perfil.",503);}

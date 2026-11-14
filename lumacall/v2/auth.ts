@@ -4,7 +4,7 @@ import { promisify } from "node:util";
 import { db } from "./database";
 const scrypt = promisify(scryptCallback);
 export const COOKIE_NAME = "lc_v2_session";
-export type User = {id:string; name:string; name_key:string; avatar_data_url:string|null; badge:string|null};
+export type User = {id:string; name:string; name_key:string; avatar_data_url:string|null; badge:string|null; bio:string; presence:string};
 export function normalizedName(v:unknown) {
   if(typeof v!=="string") return null;
   const name=v.normalize("NFKC").trim().replace(/\s+/g," ");
@@ -37,7 +37,7 @@ export async function getUser():Promise<User|null>{
   const token=(await cookies()).get(COOKIE_NAME)?.value;
   if(!token) return null;
   const hash=createHash("sha256").update(token).digest("hex");
-  const rows=await db<User>("SELECT u.id,u.name,u.name_key,u.avatar_data_url,u.badge FROM v2_sessions s JOIN v2_users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() LIMIT 1",[hash]);
+  const rows=await db<User>("SELECT u.id,u.name,u.name_key,u.avatar_data_url,u.badge,u.bio,u.presence FROM v2_sessions s JOIN v2_users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>now() LIMIT 1",[hash]);
   return rows[0]||null;
 }
 export function verifyOrigin(request:Request) {
