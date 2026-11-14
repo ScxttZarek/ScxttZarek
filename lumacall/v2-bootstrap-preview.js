@@ -1,6 +1,16 @@
 const fs=require("fs"),path=require("path");
 const copies=[
 ["v2/database.ts","lib/v2/database.ts"],
+["v3/community.ts","lib/v3/community.ts"],
+["v3/channels-route.ts","app/api/v3/channels/route.ts"],
+["v3/roles-route.ts","app/api/v3/roles/route.ts"],
+["v3/moderation-route.ts","app/api/v3/moderation/route.ts"],
+["v3/messages-route.ts","app/api/v3/messages/route.ts"],
+["v3/call-messages-route.ts","app/api/v3/call-messages/route.ts"],
+["v3/voice-route.ts","app/api/v3/voice/route.ts"],
+["v3/dm-route.ts","app/api/v3/dm/route.ts"],
+["v3/blocks-route.ts","app/api/v3/blocks/route.ts"],
+["v3/security-route.ts","app/api/v3/security/route.ts"],
 ["v2/auth.ts","lib/v2/auth.ts"],
 ["v2/health.ts","app/api/v2/health/route.ts"],
 ["v2/auth-route.ts","app/api/v2/auth/route.ts"],
