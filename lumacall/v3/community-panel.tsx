@@ -2,9 +2,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Ban, Check, ChevronDown, Edit3, Hash, Lock, Plus, Shield, Trash2, Users, Volume2, X } from "lucide-react";
 import { Avatar } from "../v2/ui-kit";
-import { apiV3, updateError, type Channel, type Member, type ServerRole, type Assignment } from "./client";
+import { apiV3, updateError, type Channel, type Member, type ServerRole, type Assignment, type Category, type ChannelGrant } from "./client";
 
-type Tab="channels"|"roles"|"members"|"bans";
+type Tab="server"|"channels"|"roles"|"members"|"bans";
 type Flags={channels:boolean;messages:boolean;moderation:boolean;roles:boolean};
 const emptyFlags:Flags={channels:false,messages:false,moderation:false,roles:false};
 const permissionLabels:{key:keyof Flags;label:string}[]=[
@@ -13,10 +13,17 @@ const permissionLabels:{key:keyof Flags;label:string}[]=[
  {key:"moderation",label:"Expulsar e banir membros"},
  {key:"roles",label:"Gerenciar cargos"}
 ];
-export function CommunityPanel({serverId,members,onClose,onUpdated,onOpenDm}:{
- serverId:string;members:Member[];onClose:()=>void;onUpdated:()=>void;onOpenDm:(userId:string)=>void;
+export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwner,members,onClose,onUpdated,onOpenDm}:{
+ serverId:string;serverName:string;serverIcon:string|null;inviteCode:string;isOwner:boolean;
+ members:Member[];onClose:()=>void;onUpdated:()=>void;onOpenDm:(userId:string)=>void;
 }){
- const [tab,setTab]=useState<Tab>("channels");
+ const [tab,setTab]=useState<Tab>("server");
+ const [serverNameDraft,setServerNameDraft]=useState(serverName);
+ const [categories,setCategories]=useState<Category[]>([]);
+ const [categoryName,setCategoryName]=useState("");
+ const [grants,setGrants]=useState<ChannelGrant[]>([]);
+ const [newCategoryId,setNewCategoryId]=useState("");
+ const [editCategoryId,setEditCategoryId]=useState("");
  const [channels,setChannels]=useState<Channel[]>([]);
  const [roles,setRoles]=useState<ServerRole[]>([]);
  const [assignments,setAssignments]=useState<Assignment[]>([]);
@@ -40,11 +47,12 @@ export function CommunityPanel({serverId,members,onClose,onUpdated,onOpenDm}:{
  const [refreshing,setRefreshing]=useState(true);
 
  const load=useCallback(async()=>{
-  const [c,r]=await Promise.all([
-   apiV3<{channels:Channel[];canManage:boolean}>("/api/v3/channels?serverId="+encodeURIComponent(serverId)),
-   apiV3<{roles:ServerRole[];assignments:Assignment[];canManage:boolean}>("/api/v3/roles?serverId="+encodeURIComponent(serverId))
+  const [c,r,cat]=await Promise.all([
+   apiV3<{channels:Channel[];canManage:boolean;grants:ChannelGrant[]}>("/api/v3/channels?serverId="+encodeURIComponent(serverId)),
+   apiV3<{roles:ServerRole[];assignments:Assignment[];canManage:boolean}>("/api/v3/roles?serverId="+encodeURIComponent(serverId)),
+   apiV3<{categories:Category[]}>("/api/v3/categories?serverId="+encodeURIComponent(serverId))
   ]);
-  setChannels(c.channels);setCanManageChannels(c.canManage);
+  setChannels(c.channels);setCanManageChannels(c.canManage);setGrants(c.grants);setCategories(cat.categories);
   setRoles(r.roles);setAssignments(r.assignments);setCanManageRoles(r.canManage);
   try{
    const mod=await apiV3<{bans:{user_id:string;name:string;reason:string}[]}>("/api/v3/moderation?serverId="+encodeURIComponent(serverId));
@@ -68,7 +76,7 @@ export function CommunityPanel({serverId,members,onClose,onUpdated,onOpenDm}:{
   event.preventDefault();
   if(!newChannel.trim())return;
   await run(async()=>{
-   await apiV3("/api/v3/channels","POST",{serverId,name:newChannel,kind,isPrivate:privateChannel});
+   await apiV3("/api/v3/channels","POST",{serverId,name:newChannel,kind,isPrivate:privateChannel,categoryId:newCategoryId||null});
    setNewChannel("");setPrivateChannel(false);
   });
  }
@@ -76,12 +84,44 @@ export function CommunityPanel({serverId,members,onClose,onUpdated,onOpenDm}:{
   event.preventDefault();
   if(!editChannelId)return;
   await run(async()=>{
-   await apiV3("/api/v3/channels","PATCH",{channelId:editChannelId,name:editChannelName,isPrivate:editPrivate});
+   await apiV3("/api/v3/channels","PATCH",{channelId:editChannelId,name:editChannelName,isPrivate:editPrivate,categoryId:editCategoryId||null});
    setEditChannelId(null);
   });
  }
  function beginChannelEdit(channel:Channel){
-  setEditChannelId(channel.id);setEditChannelName(channel.name);setEditPrivate(channel.is_private);
+  setEditChannelId(channel.id);setEditChannelName(channel.name);setEditPrivate(channel.is_private);setEditCategoryId(channel.category_id||"");
+ }
+ async function createCategory(event:React.FormEvent){
+  event.preventDefault();if(!categoryName.trim())return;
+  await run(async()=>{await apiV3("/api/v3/categories","POST",{serverId,name:categoryName});setCategoryName("");});
+ }
+ async function deleteCategory(category:Category){
+  if(!window.confirm("Excluir a categoria "+category.name+"? Os canais continuarão existindo."))return;
+  await run(()=>apiV3("/api/v3/categories","DELETE",{categoryId:category.id}));
+ }
+ async function toggleGrant(channelId:string,roleId:string,enabled:boolean){
+  await run(()=>apiV3("/api/v3/channels","PATCH",{channelId,roleId,enabled,action:"grant"}));
+ }
+ async function saveServer(event:React.FormEvent){
+  event.preventDefault();await run(()=>apiV3("/api/v3/server-settings","PATCH",{serverId,name:serverNameDraft}));
+ }
+ async function changeServerIcon(file?:File){
+  if(!file)return;
+  if(!file.type.startsWith("image/")){setError("Escolha uma imagem.");return;}
+  try{
+   const bmp=await createImageBitmap(file),canvas=document.createElement("canvas");
+   canvas.width=256;canvas.height=256;
+   const ctx=canvas.getContext("2d");if(!ctx)throw new Error("Não foi possível processar o ícone.");
+   const scale=Math.max(256/bmp.width,256/bmp.height);
+   ctx.drawImage(bmp,(256-bmp.width*scale)/2,(256-bmp.height*scale)/2,bmp.width*scale,bmp.height*scale);
+   bmp.close();const data=canvas.toDataURL("image/webp",.76);
+   if(data.length>160000)throw new Error("Ícone muito grande.");
+   await run(()=>apiV3("/api/v3/server-settings","PATCH",{serverId,icon:data}));
+  }catch(e){setError(updateError(e));}
+ }
+ async function rotateInvite(){
+  if(!window.confirm("Renovar o código de convite? O código anterior deixará de funcionar."))return;
+  await run(()=>apiV3("/api/v3/server-settings","POST",{serverId}));
  }
  async function deleteChannel(channel:Channel){
   if(!window.confirm('Excluir o canal "'+channel.name+'"? As mensagens serão preservadas no canal geral.'))return;
