@@ -1,4 +1,6 @@
-export type Channel={id:string;server_id:string;name:string;kind:"text"|"voice";position:number;is_private:boolean};
+export type Channel={id:string;server_id:string;name:string;kind:"text"|"voice";position:number;is_private:boolean;category_id:string|null};
+export type Category={id:string;server_id:string;name:string;position:number};
+export type ChannelGrant={channel_id:string;role_id:string};
 export type ServerRole={id:string;name:string;color:string;priority:number;manage_channels:boolean;manage_messages:boolean;moderate_members:boolean;manage_roles:boolean};
 export type Assignment={role_id:string;user_id:string};
 export type Member={id:string;name:string;badge:string|null;avatar_data_url:string|null;role:string;presence?:string;bio?:string};

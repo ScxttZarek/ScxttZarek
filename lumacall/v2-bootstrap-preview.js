@@ -8,6 +8,8 @@ const copies=[
 ["v3/community.css","app/nova/community.css"],
 ["v3/community.ts","lib/v3/community.ts"],
 ["v3/channels-route.ts","app/api/v3/channels/route.ts"],
+["v3/categories-route.ts","app/api/v3/categories/route.ts"],
+["v3/server-settings-route.ts","app/api/v3/server-settings/route.ts"],
 ["v3/roles-route.ts","app/api/v3/roles/route.ts"],
 ["v3/moderation-route.ts","app/api/v3/moderation/route.ts"],
 ["v3/messages-route.ts","app/api/v3/messages/route.ts"],

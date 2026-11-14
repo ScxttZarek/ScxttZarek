@@ -2,7 +2,7 @@
 import { ArrowRight, Copy, Hash, Headphones, Menu, Plus, UserRound, Users, Settings2, MessageCircle, MessagesSquare } from "lucide-react";
 import { Avatar, Badge } from "./ui-kit";
 import { InstallLumaCall } from "./install-app";
-type ServerEntry={id:string;name:string};
+type ServerEntry={id:string;name:string;icon_data_url?:string|null};
 type MemberEntry={id:string;name:string;badge:string|null;avatar_data_url:string|null;role:string;presence?:string;bio?:string};
 export function ServerRail({servers,selected,onSelect,onCreate,onJoin}:{
   servers:ServerEntry[];selected:string|null;
@@ -11,7 +11,7 @@ export function ServerRail({servers,selected,onSelect,onCreate,onJoin}:{
   return <nav className="v2-servers-rail" aria-label="Seus servidores">
     <div className="v2-rail-brand"><img src="/icons/lumacall-obsidian-mark.svg" alt="LumaCall" width="43" height="43"/></div>
     <div className="v2-rail-divider" aria-hidden="true"/>
-    {servers.map(s=><button key={s.id} type="button" onClick={()=>onSelect(s.id)} title={s.name} aria-label={"Abrir servidor "+s.name} aria-current={selected===s.id?"page":undefined} className={"v2-server-icon "+(selected===s.id?"selected":"")}><span aria-hidden="true">{s.name.slice(0,2).toUpperCase()}</span></button>)}
+    {servers.map(s=><button key={s.id} type="button" onClick={()=>onSelect(s.id)} title={s.name} aria-label={"Abrir servidor "+s.name} aria-current={selected===s.id?"page":undefined} className={"v2-server-icon "+(selected===s.id?"selected":"")}>{s.icon_data_url?<img src={s.icon_data_url} alt="" className="v3-server-icon-image"/>:<span aria-hidden="true">{s.name.slice(0,2).toUpperCase()}</span>}</button>)}
     <button type="button" className="v2-add-server" title="Criar servidor" aria-label="Criar servidor" onClick={onCreate}><Plus size={24}/></button>
     <button type="button" className="v2-add-server" title="Entrar com convite" aria-label="Entrar em servidor" onClick={onJoin}><ArrowRight size={20}/></button>
   </nav>;

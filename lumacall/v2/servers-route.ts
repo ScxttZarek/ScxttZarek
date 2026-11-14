@@ -6,7 +6,7 @@ export const runtime="nodejs";
 export async function GET(){
   try{
     const user=await getUser();if(!user)return asJson("Entre na conta.",401);
-    const servers=await db("SELECT s.id,s.name,s.invite_code,s.member_count,m.role FROM v2_servers s JOIN v2_memberships m ON m.server_id=s.id WHERE m.user_id=$1 ORDER BY m.joined_at DESC",[user.id]);
+    const servers=await db("SELECT s.id,s.name,s.icon_data_url,s.invite_code,s.member_count,m.role FROM v2_servers s JOIN v2_memberships m ON m.server_id=s.id WHERE m.user_id=$1 ORDER BY m.joined_at DESC",[user.id]);
     return Response.json({servers},{headers:{"cache-control":"no-store"}});
   }catch{return asJson("Não foi possível carregar seus servidores.",503);}
 }
