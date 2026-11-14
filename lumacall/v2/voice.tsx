@@ -10,7 +10,7 @@ import { Avatar } from "./ui-kit";
 
 type Member = {id:string;name:string;badge:string|null;avatar_data_url:string|null};
 
-function CallContent({members,onLeave}:{members:Member[];onLeave:()=>void}) {
+function CallContent({members,onLeave,roomError}:{members:Member[];onLeave:()=>void;roomError:string}) {
   const room=useRoomContext();
   const connection=useConnectionState(room);
   const participants=useParticipants();
@@ -33,7 +33,11 @@ function CallContent({members,onLeave}:{members:Member[];onLeave:()=>void}) {
     : connection===ConnectionState.Disconnected ? "Desconectado" : "Reconectando…";
 
   useEffect(()=>{
-    if(viewerIdentity&&!screens.some(t=>t.participant.identity===viewerIdentity))setViewerIdentity(null);
+    if(viewerIdentity&&!screens.some(t=>t.participant.identity===viewerIdentity)){
+      if(document.fullscreenElement===viewerRef.current)void document.exitFullscreen().catch(()=>undefined);
+      setExpandedFallback(false);
+      setViewerIdentity(null);
+    }
   },[viewerIdentity,screens]);
   useEffect(()=>{
     const sync=()=>setFullscreen(document.fullscreenElement===viewerRef.current);
@@ -93,7 +97,7 @@ function CallContent({members,onLeave}:{members:Member[];onLeave:()=>void}) {
         <Square size={13} fill="currentColor"/> Parar transmissão
       </button>
     </div>}
-    {error&&<p className="lc-call-error" role="alert">{error}<button type="button" aria-label="Fechar aviso" onClick={()=>setError("")}><X size={15}/></button></p>}
+    {(error||roomError)&&<p className="lc-call-error" role="alert">{error||roomError}{error&&<button type="button" aria-label="Fechar aviso" onClick={()=>setError("")}><X size={15}/></button>}</p>}
 
     <main className={"lc-call-stage"+(viewedTrack?" lc-call-stage--watching":"")}>
       {viewedTrack&&<section ref={viewerRef} className={"lc-call-viewer"+(expandedFallback?" lc-call-viewer--expanded":"")} aria-label={"Transmissão de "+viewerName}>
@@ -163,11 +167,12 @@ function CallContent({members,onLeave}:{members:Member[];onLeave:()=>void}) {
 export function VoiceRoom({token,url,members,onLeave,visible}:{
   token:string;url:string;members:Member[];onLeave:()=>void;visible:boolean;
 }){
+  const [roomError,setRoomError]=useState("");
   return <div className={visible?"lc-call-root":"lc-call-root lc-call-root--hidden"}>
     <LiveKitRoom className="lc-call-provider" token={token} serverUrl={url} connect
       audio={false} video={false} options={{adaptiveStream:true,dynacast:true}}
-      onDisconnected={onLeave} onError={()=>undefined}>
-      <RoomAudioRenderer/><CallContent members={members} onLeave={onLeave}/>
+      onDisconnected={onLeave} onError={()=>setRoomError("Não foi possível conectar todos os recursos da chamada. Verifique sua conexão e tente novamente.")}>
+      <RoomAudioRenderer/><CallContent members={members} onLeave={onLeave} roomError={roomError}/>
     </LiveKitRoom>
   </div>;
 }
