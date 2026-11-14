@@ -16,6 +16,7 @@ const copies=[
 ["v2/ui-kit.tsx","components/v2/ui-kit.tsx"],
 ["v2/shell-parts.tsx","components/v2/shell-parts.tsx"],
 ["v2/v2.css","app/nova/v2.css"],
+["v2/call-stage.css","app/nova/call-stage.css"],
 ["v2/demo-page.tsx","app/nova/demo/page.tsx"]
 ];
 for(const [source,dest] of copies){
@@ -26,5 +27,5 @@ for(const [source,dest] of copies){
   fs.mkdirSync(path.dirname(dest),{recursive:true});
   fs.writeFileSync(dest,code);
 }
-fs.writeFileSync("app/nova/page.tsx",'import "./v2.css";\nimport { NovaApp } from "@/components/v2/nova-app";\nexport const metadata={title:"LumaCall 2.0 — Nova interface"};\nexport default function Page(){return <NovaApp/>;}\n');
+fs.writeFileSync("app/nova/page.tsx",'import "./v2.css";\nimport "./call-stage.css";\nimport { NovaApp } from "@/components/v2/nova-app";\nexport const metadata={title:"LumaCall 2.0 — Nova interface"};\nexport default function Page(){return <NovaApp/>;}\n');
 console.log("LUMACALL_V2_BOOTSTRAP=installed; route=/nova; main-unchanged");

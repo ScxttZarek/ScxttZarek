@@ -72,3 +72,15 @@ Use a non-production preview deployment. Confirm Next.js and TypeScript build lo
 - The screen-share action checks whether the browser provides `getDisplayMedia` before attempting to start capture, and shows a Portuguese explanation otherwise.
 - The existing broadcaster/viewer and control dock behavior remain unchanged.
 - Real-device, two-session media regression tests are **not yet performed** and remain a release blocker for claiming full call stability.
+
+## Phase 4 — Call theater and uncropped screen share
+
+- The independent \`lc-call-*\` UI replaces the previous nested scrolling call view.
+- LiveKit room/provider/call layout and stage explicitly fill the available vertical space, pinning controls to the bottom.
+- Without an opened stream, participant cards are centered in the available stage.
+- With a selected stream, the capture is the main panel and participants become a horizontal filmstrip.
+- Shared desktops render with object-fit: contain, preserving the captured screen's full edges and aspect ratio.
+- Watch/preview remains opt-in and the viewer retains fullscreen plus an expanded fallback.
+- Backend, secrets, existing accounts and PostgreSQL schema are not changed.
+- Build/typecheck and two-browser real capture tests must be independently documented; a successful build alone is not enough.
+

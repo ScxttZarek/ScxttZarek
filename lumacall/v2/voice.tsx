@@ -1,126 +1,173 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { reservedAvatarForBadge } from "@/lib/reserved-profile";
-import { LiveKitRoom, RoomAudioRenderer, useConnectionState, useLocalParticipant, useParticipants, useRoomContext, useTracks, VideoTrack, isTrackReference } from "@livekit/components-react";
+import {
+  LiveKitRoom, RoomAudioRenderer, VideoTrack, isTrackReference,
+  useConnectionState, useLocalParticipant, useParticipants, useRoomContext, useTracks
+} from "@livekit/components-react";
 import { ConnectionState, Track } from "livekit-client";
-import { Camera, CameraOff, Mic, MicOff, MonitorUp, PhoneOff, Play, X, Radio, Square, Maximize2, Minimize2 } from "lucide-react";
+import { Camera, CameraOff, Headphones, Maximize2, Mic, MicOff, Minimize2, MonitorUp, PhoneOff, Play, Radio, Square, X } from "lucide-react";
+import { Avatar } from "./ui-kit";
 
-type Member = { id:string; name:string; badge:string|null; avatar_data_url:string|null };
-function Avatar({ name, src, badge, size=70 }:{ name:string; src?:string|null; badge?:string|null; size?:number }) {
-  const reserved = badge==="princesa_tess"?"/avatars/shine.webp":badge==="bolacha_oreo"?"/avatars/aldron.webp":reservedAvatarForBadge(badge||undefined);
-  const image = src || reserved;
-  return image?<img src={image} alt="" className="v2-avatar" style={{width:size,height:size}}/>:<span className="v2-avatar v2-avatar-fallback" style={{width:size,height:size,fontSize:size*.38}}>{name.charAt(0).toUpperCase()}</span>;
-}
-function VoiceInside({members,onLeave}:{members:Member[];onLeave:()=>void}){
+type Member = {id:string;name:string;badge:string|null;avatar_data_url:string|null};
+
+function CallContent({members,onLeave}:{members:Member[];onLeave:()=>void}) {
   const room=useRoomContext();
+  const connection=useConnectionState(room);
   const participants=useParticipants();
-  const connectionState=useConnectionState(room);
-  const connectionLabel=connectionState===ConnectionState.Connected
-    ? participants.length+"/6 conectados"
-    : connectionState===ConnectionState.Connecting
-      ? "Conectando…"
-      : connectionState===ConnectionState.Disconnected
-        ? "Desconectado"
-        : "Reconectando…";
   const {localParticipant,isMicrophoneEnabled,isCameraEnabled,isScreenShareEnabled}=useLocalParticipant();
-  const tracks=useTracks([Track.Source.Camera,Track.Source.ScreenShare],{onlySubscribed:false}).filter(isTrackReference);
-  const screens=tracks.filter(track=>track.source===Track.Source.ScreenShare);
-  const [watching,setWatching]=useState<string|null>(null);
+  const videoTracks=useTracks([Track.Source.Camera,Track.Source.ScreenShare],{onlySubscribed:false}).filter(isTrackReference);
+  const screens=videoTracks.filter(track=>track.source===Track.Source.ScreenShare);
+  const [viewerIdentity,setViewerIdentity]=useState<string|null>(null);
+  const [busy,setBusy]=useState(false);
+  const busyRef=useRef(false);
+  const [error,setError]=useState("");
   const viewerRef=useRef<HTMLElement|null>(null);
   const [fullscreen,setFullscreen]=useState(false);
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState("");
-  const playing=screens.find(t=>t.participant.identity===watching);
-  const watchingName=participants.find(p=>p.identity===watching)?.name||"participante";
-  useEffect(()=>{if(watching&&!playing)setWatching(null);},[watching,playing]);
+  const [expandedFallback,setExpandedFallback]=useState(false);
+  const viewedTrack=screens.find(t=>t.participant.identity===viewerIdentity);
+  const viewerName=participants.find(p=>p.identity===viewerIdentity)?.name||"participante";
+  const connected=connection===ConnectionState.Connected;
+  const connectionText=connected
+    ? participants.length+"/6 conectados"
+    : connection===ConnectionState.Connecting ? "Conectando…"
+    : connection===ConnectionState.Disconnected ? "Desconectado" : "Reconectando…";
+
+  useEffect(()=>{
+    if(viewerIdentity&&!screens.some(t=>t.participant.identity===viewerIdentity))setViewerIdentity(null);
+  },[viewerIdentity,screens]);
   useEffect(()=>{
     const sync=()=>setFullscreen(document.fullscreenElement===viewerRef.current);
     document.addEventListener("fullscreenchange",sync);
-    return ()=>document.removeEventListener("fullscreenchange",sync);
+    return()=>document.removeEventListener("fullscreenchange",sync);
   },[]);
-  async function toggleFullscreen(){
-    const node=viewerRef.current;
-    if(!node)return;
-    try{
-      if(document.fullscreenElement===node)await document.exitFullscreen();
-      else await node.requestFullscreen();
-    }catch{
-      setError("Não foi possível abrir em tela cheia neste navegador.");
-    }
-  }
-  function closeViewer(){
-    if(document.fullscreenElement===viewerRef.current)void document.exitFullscreen().catch(()=>{});
-    setWatching(null);
-  }
-  async function act(fn:()=>Promise<unknown>){
-    if(busy)return;
+  useEffect(()=>{
+    if(!expandedFallback)return;
+    const onKey=(e:KeyboardEvent)=>{if(e.key==="Escape")setExpandedFallback(false);};
+    window.addEventListener("keydown",onKey);
+    return()=>window.removeEventListener("keydown",onKey);
+  },[expandedFallback]);
+
+  async function act(work:()=>Promise<unknown>){
+    if(busyRef.current)return;
+    busyRef.current=true;
     setBusy(true);setError("");
-    try{await fn();}catch{setError("Não foi possível alterar a transmissão ou o dispositivo. Verifique as permissões.");}finally{setBusy(false);}
+    try{await work();}catch{setError("Não foi possível alterar o dispositivo. Verifique as permissões do navegador.");}
+    finally{busyRef.current=false;setBusy(false);}
   }
-  const stopSharing=()=>void act(()=>localParticipant.setScreenShareEnabled(false));
   function toggleSharing(){
-    if(!isScreenShareEnabled && (typeof navigator==="undefined" || typeof navigator.mediaDevices?.getDisplayMedia!=="function")){
+    if(!isScreenShareEnabled&&typeof navigator.mediaDevices?.getDisplayMedia!=="function"){
       setError("Este navegador não permite compartilhar a tela. Você ainda pode assistir às transmissões.");
       return;
     }
     void act(()=>localParticipant.setScreenShareEnabled(!isScreenShareEnabled));
   }
-  return <section className="v2-voice-body" aria-label="Chamada de voz">
-    <header className="v2-voice-heading">
-      <div className="v2-voice-heading-label"><h2>Chamada de voz</h2><p>Assista às transmissões quando quiser</p></div>
-      <span className={"v2-online "+(connectionState===ConnectionState.Connected?"":"v2-online-transition")} role="status" aria-live="polite">{connectionLabel}</span>
+  async function toggleFullscreen(){
+    const node=viewerRef.current;if(!node)return;
+    if(expandedFallback){setExpandedFallback(false);return;}
+    try{
+      if(document.fullscreenElement===node)await document.exitFullscreen();
+      else if(typeof node.requestFullscreen==="function")await node.requestFullscreen();
+      else setExpandedFallback(true);
+    }catch{setExpandedFallback(true);}
+  }
+  function closeViewer(){
+    if(document.fullscreenElement===viewerRef.current)void document.exitFullscreen().catch(()=>undefined);
+    setExpandedFallback(false);setViewerIdentity(null);
+  }
+  function leaveCall(){closeViewer();void room.disconnect();onLeave();}
+
+  return <section className="lc-call-layout" aria-label="Chamada de voz">
+    <header className="lc-call-header">
+      <div className="lc-call-heading">
+        <span className="lc-call-eyebrow"><Headphones size={13} aria-hidden="true"/> CANAL DE VOZ</span>
+        <h2>Chamada de voz</h2>
+        <p>Converse com os membros e escolha quando assistir a uma transmissão.</p>
+      </div>
+      <span className={"lc-call-status "+(connected?"lc-call-status--online":"lc-call-status--pending")} role="status" aria-live="polite">
+        <span className="lc-call-status-dot" aria-hidden="true"/>{connectionText}
+      </span>
     </header>
-    {isScreenShareEnabled&&<div className="v2-share-status">
-      <span><Radio size={16}/> Você está compartilhando a tela</span>
-      <button type="button" disabled={busy} onClick={stopSharing} aria-label="Parar transmissão"><Square size={13} fill="currentColor"/> Parar transmissão</button>
+    {isScreenShareEnabled&&<div className="lc-call-sharing" role="status">
+      <span><Radio size={16}/> Você está transmitindo sua tela</span>
+      <button type="button" disabled={busy} onClick={()=>void act(()=>localParticipant.setScreenShareEnabled(false))}>
+        <Square size={13} fill="currentColor"/> Parar transmissão
+      </button>
     </div>}
-    {error&&<p className="v2-error v2-voice-error" role="alert">{error}</p>}
-    <div className={playing?"v2-voice-stage v2-voice-stage-watching":"v2-voice-stage"}>
-      {playing&&<section ref={viewerRef} className="v2-stream-viewer" aria-label="Transmissão em exibição">
-        <div className="v2-stream-title"><span><Radio size={14}/> Transmissão de {watchingName} <b>AO VIVO</b></span>
-          <div className="v2-stream-title-actions">
-            <button type="button" onClick={()=>void toggleFullscreen()} aria-label={fullscreen?"Sair da tela cheia":"Tela cheia"} title={fullscreen?"Sair da tela cheia":"Ampliar transmissão em tela cheia"}>
-              {fullscreen?<Minimize2 size={16}/>:<Maximize2 size={16}/>} <span>{fullscreen?"Sair da tela cheia":"Tela cheia"}</span>
+    {error&&<p className="lc-call-error" role="alert">{error}<button type="button" aria-label="Fechar aviso" onClick={()=>setError("")}><X size={15}/></button></p>}
+
+    <main className={"lc-call-stage"+(viewedTrack?" lc-call-stage--watching":"")}>
+      {viewedTrack&&<section ref={viewerRef} className={"lc-call-viewer"+(expandedFallback?" lc-call-viewer--expanded":"")} aria-label={"Transmissão de "+viewerName}>
+        <div className="lc-call-viewer-toolbar">
+          <div className="lc-call-viewer-name">
+            <span className="lc-call-live"><Radio size={12}/> AO VIVO</span>
+            <strong title={viewerName}>{viewerIdentity===localParticipant.identity?"Sua transmissão":"Transmissão de "+viewerName}</strong>
+          </div>
+          <div className="lc-call-viewer-actions">
+            <button type="button" onClick={()=>void toggleFullscreen()} aria-label={fullscreen||expandedFallback?"Sair da tela cheia":"Tela cheia"} title={fullscreen||expandedFallback?"Sair da tela cheia":"Tela cheia"}>
+              {fullscreen||expandedFallback?<Minimize2 size={16}/>:<Maximize2 size={16}/>}<span>{fullscreen||expandedFallback?"Sair da tela cheia":"Tela cheia"}</span>
             </button>
-            <button type="button" onClick={closeViewer} aria-label="Parar de assistir"><X size={16}/> <span>Fechar</span></button>
+            <button type="button" onClick={closeViewer} aria-label="Fechar visualização"><X size={16}/><span>Fechar</span></button>
           </div>
         </div>
-        <div className="v2-stream-player"><VideoTrack trackRef={playing}/></div>
+        <div className="lc-call-video-surface"><VideoTrack trackRef={viewedTrack}/></div>
       </section>}
-      <div className="v2-voice-grid">
+      <div className={"lc-call-participants"+(viewedTrack?" lc-call-participants--strip":"")} role="list" aria-label="Participantes da chamada">
         {participants.map(p=>{
           const member=members.find(m=>m.id===p.identity);
-          const cam=tracks.find(t=>t.participant.identity===p.identity&&t.source===Track.Source.Camera);
-          const stream=screens.find(t=>t.participant.identity===p.identity);
-          const own=p.identity===localParticipant.identity;
           const name=p.name||member?.name||"Participante";
-          const active=playing&&watching===p.identity;
-          return <article className="v2-voice-tile" key={p.identity}>
-            <div className="v2-tile-media">{cam?<VideoTrack trackRef={cam}/>:<Avatar name={name} src={member?.avatar_data_url} badge={member?.badge} size={playing?52:78}/>}</div>
-            {stream&&<div className="v2-stream-invite">
-              <span><Radio size={12}/> {own?"Sua transmissão":"Transmitindo tela"}</span>
-              <button type="button" onClick={()=>active?closeViewer():setWatching(p.identity)} aria-label={active?"Parar de assistir": "Assistir transmissão de "+name}>
+          const own=p.identity===localParticipant.identity;
+          const camera=videoTracks.find(t=>t.participant.identity===p.identity&&t.source===Track.Source.Camera);
+          const screen=screens.find(t=>t.participant.identity===p.identity);
+          const active=Boolean(viewedTrack&&viewerIdentity===p.identity);
+          return <article className="lc-call-tile" key={p.identity} role="listitem">
+            <div className="lc-call-tile-media">
+              {camera?<VideoTrack trackRef={camera}/>:<Avatar name={name} src={member?.avatar_data_url} badge={member?.badge} size={viewedTrack?56:86}/>}
+            </div>
+            {screen&&<div className="lc-call-tile-stream">
+              <span><Radio size={12}/>{own?"Sua transmissão":"Transmitindo"}</span>
+              <button type="button" onClick={()=>active?closeViewer():setViewerIdentity(p.identity)}
+                aria-label={active?"Fechar transmissão de "+name:own?"Ver prévia":"Assistir transmissão de "+name}>
                 {active?<X size={13}/>:<Play size={13} fill="currentColor"/>}
-                {active?"Fechar transmissão":own?"Ver prévia":"Assistir transmissão"}
+                {active?"Fechar":own?"Ver prévia":"Assistir transmissão"}
               </button>
             </div>}
-            <div className="v2-voice-tile-bottom"><strong>{name}{own?" (você)":""}</strong>{!p.isMicrophoneEnabled&&<MicOff size={14}/>}</div>
+            <div className="lc-call-tile-footer">
+              <strong title={name}>{name}{own?" (você)":""}</strong>
+              {!p.isMicrophoneEnabled&&<MicOff size={15} aria-label="Microfone desligado"/>}
+            </div>
           </article>;
         })}
       </div>
-    </div>
-    <footer className="v2-voice-controls" aria-label="Controles da chamada">
-      <button type="button" disabled={busy} className={!isMicrophoneEnabled?"v2-muted":""} title={isMicrophoneEnabled?"Desligar microfone":"Ligar microfone"} aria-label="Alternar microfone" onClick={()=>void act(()=>localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled))}>{isMicrophoneEnabled?<Mic/>:<MicOff/>}</button>
-      <button type="button" disabled={busy} className={!isCameraEnabled?"v2-muted":""} title={isCameraEnabled?"Desligar câmera":"Ligar câmera"} aria-label="Alternar câmera" onClick={()=>void act(()=>localParticipant.setCameraEnabled(!isCameraEnabled))}>{isCameraEnabled?<Camera/>:<CameraOff/>}</button>
-      <button type="button" disabled={busy} className={isScreenShareEnabled?"v2-sharing":""} title={isScreenShareEnabled?"Parar transmissão":"Compartilhar tela"} aria-label={isScreenShareEnabled?"Parar transmissão":"Compartilhar tela"} aria-pressed={isScreenShareEnabled} onClick={toggleSharing}>{isScreenShareEnabled?<Square fill="currentColor"/>:<MonitorUp/>}</button>
-      <button type="button" className="v2-hangup" title="Desligar chamada" aria-label="Desligar chamada" onClick={()=>{void room.disconnect();onLeave();}}><PhoneOff/></button>
+    </main>
+    <footer className="lc-call-dock" aria-label="Controles da chamada">
+      <div className="lc-call-dock-group">
+        <button type="button" disabled={busy} className={"lc-call-control"+(!isMicrophoneEnabled?" lc-call-control--off":"")}
+          title={isMicrophoneEnabled?"Desligar microfone":"Ligar microfone"}
+          aria-label={isMicrophoneEnabled?"Desligar microfone":"Ligar microfone"} aria-pressed={isMicrophoneEnabled}
+          onClick={()=>void act(()=>localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled))}>{isMicrophoneEnabled?<Mic size={20}/>:<MicOff size={20}/>}</button>
+        <button type="button" disabled={busy} className={"lc-call-control"+(!isCameraEnabled?" lc-call-control--off":"")}
+          title={isCameraEnabled?"Desligar câmera":"Ligar câmera"} aria-label={isCameraEnabled?"Desligar câmera":"Ligar câmera"}
+          aria-pressed={isCameraEnabled} onClick={()=>void act(()=>localParticipant.setCameraEnabled(!isCameraEnabled))}>{isCameraEnabled?<Camera size={20}/>:<CameraOff size={20}/>}</button>
+        <button type="button" disabled={busy} className={"lc-call-control"+(isScreenShareEnabled?" lc-call-control--sharing":"")}
+          title={isScreenShareEnabled?"Parar transmissão":"Compartilhar tela"}
+          aria-label={isScreenShareEnabled?"Parar transmissão":"Compartilhar tela"}
+          aria-pressed={isScreenShareEnabled} onClick={toggleSharing}>{isScreenShareEnabled?<Square size={19} fill="currentColor"/>:<MonitorUp size={20}/>}</button>
+        <span className="lc-call-dock-separator" aria-hidden="true"/>
+        <button type="button" className="lc-call-control lc-call-control--hangup" title="Desligar chamada" aria-label="Desligar chamada" onClick={leaveCall}><PhoneOff size={20}/></button>
+      </div>
+      <span className="lc-call-dock-label">Chamada de voz</span>
     </footer>
   </section>;
 }
-export function VoiceRoom({token,url,members,onLeave,visible}:{token:string;url:string;members:Member[];onLeave:()=>void;visible:boolean}){
-  return <div className={visible?"v2-voice-wrapper":"v2-voice-wrapper v2-voice-hidden"}>
-    <LiveKitRoom token={token} serverUrl={url} connect audio={false} video={false} options={{adaptiveStream:true,dynacast:true}} onDisconnected={onLeave} onError={()=>{}}>
-      <RoomAudioRenderer/><VoiceInside members={members} onLeave={onLeave}/>
+
+export function VoiceRoom({token,url,members,onLeave,visible}:{
+  token:string;url:string;members:Member[];onLeave:()=>void;visible:boolean;
+}){
+  return <div className={visible?"lc-call-root":"lc-call-root lc-call-root--hidden"}>
+    <LiveKitRoom className="lc-call-provider" token={token} serverUrl={url} connect
+      audio={false} video={false} options={{adaptiveStream:true,dynacast:true}}
+      onDisconnected={onLeave} onError={()=>undefined}>
+      <RoomAudioRenderer/><CallContent members={members} onLeave={onLeave}/>
     </LiveKitRoom>
   </div>;
 }
