@@ -196,7 +196,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
       <div className="v3-list">
        {channels.map(c=><div className="v3-list-entry" key={c.id}>
         <div className="v3-list-meta">{c.kind==="text"?<Hash size={18}/>:<Volume2 size={18}/>}
-         <div><strong>{c.name}</strong><small>{c.kind==="text"?"Texto":"Voz"}{c.is_private?" · Privado":""}</small></div>
+         <div><strong>{c.name}</strong><small>{c.kind==="text"?"Texto":"Voz"}{c.is_private?" · Privado":""}{c.category_id?" · "+(categories.find(cat=>cat.id===c.category_id)?.name||"Categoria"):""}</small></div>
          {c.is_private&&<Lock size={13}/>}
         </div>
         {canManageChannels&&<div className="v3-row-actions">
@@ -209,19 +209,39 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
        {editChannelId&&<form className="v3-settings-form" onSubmit={e=>void saveChannel(e)}>
         <strong>Editar canal</strong>
         <label>Nome<input maxLength={32} required value={editChannelName} onChange={e=>setEditChannelName(e.target.value)}/></label>
+ <label>Categoria<select value={editCategoryId} onChange={e=>setEditCategoryId(e.target.value)}><option value="">Sem categoria</option>{categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select></label>
         <label className="v3-checkline"><input type="checkbox" checked={editPrivate} onChange={e=>setEditPrivate(e.target.checked)}/> Canal privado (visível apenas para o dono ou cargos autorizados)</label>
+ {editPrivate&&roles.length>0&&<div className="v3-role-grants"><strong>Cargos autorizados</strong>
+  {roles.map(role=><label key={role.id} className="v3-checkline">
+   <input type="checkbox" checked={grants.some(g=>g.channel_id===editChannelId&&g.role_id===role.id)}
+     onChange={e=>{if(editChannelId)void toggleGrant(editChannelId,role.id,e.target.checked)}}/>
+   <span className="v3-role-dot" style={{background:role.color}}/>{role.name}
+  </label>)}
+ </div>
         <div className="v3-inline-actions"><button type="submit" disabled={busy} className="v3-primary">Salvar alterações</button><button type="button" onClick={()=>setEditChannelId(null)}>Cancelar</button></div>
        </form>}
        <form className="v3-settings-form" onSubmit={e=>void createChannel(e)}>
         <strong>Criar canal</strong>
         <label>Nome<input required minLength={1} maxLength={32} placeholder="nome-do-canal" value={newChannel} onChange={e=>setNewChannel(e.target.value)}/></label>
         <label>Tipo<select value={kind} onChange={e=>setKind(e.target.value as "text"|"voice")}><option value="text">Canal de texto</option><option value="voice">Canal de voz</option></select></label>
+ <label>Categoria<select value={newCategoryId} onChange={e=>setNewCategoryId(e.target.value)}><option value="">Sem categoria</option>{categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select></label>
         <label className="v3-checkline"><input type="checkbox" checked={privateChannel} onChange={e=>setPrivateChannel(e.target.checked)}/> Privado (inicialmente apenas para o dono)</label>
         <button type="submit" disabled={busy} className="v3-primary"><Plus size={16}/> Criar canal</button>
        </form>
       </>}
      </>}
-     {tab==="roles"&&<>
+     {canManageChannels&&tab==="channels"&&<div className="v3-settings-form">
+ <strong>Categorias</strong>
+ <p className="v3-muted">Organize canais em seções. Excluir uma categoria não exclui seus canais.</p>
+ {categories.map(cat=><div key={cat.id} className="v3-list-entry"><strong>{cat.name}</strong>
+  <button type="button" title="Excluir categoria" onClick={()=>void deleteCategory(cat)}><Trash2 size={15}/></button>
+ </div>)}
+ <form onSubmit={e=>void createCategory(e)} className="v3-category-add">
+  <input required minLength={2} maxLength={32} value={categoryName} onChange={e=>setCategoryName(e.target.value)} placeholder="Nova categoria"/>
+  <button type="submit" disabled={busy}><Plus size={16}/> Criar categoria</button>
+ </form>
+</div>}
+{tab==="roles"&&<>
       <p className="v3-muted">Cargos definem a aparência e as permissões. Apenas o dono pode criá-los ou atribuí-los.</p>
       <div className="v3-list">{roles.map(r=><div className="v3-list-entry" key={r.id}>
        <div className="v3-list-meta"><span className="v3-role-dot" style={{background:r.color}}/><div><strong>{r.name}</strong><small>Prioridade {r.priority} · {[
