@@ -24,6 +24,13 @@ At audit time: 9 users, 4 servers, 5 messages. No data mutation is authorized fo
 5. Browser resizing, low screen height and mobile drawer interactions must not conceal critical controls.
 6. The generated Next.js source is overwritten by installer scripts; durable changes must be made in `v2/` and copied during bootstrap.
 
+## Phase 2 UI shell polish
+
+- Refined server navigation, sidebar, header controls and member row spacing using existing CSS selectors.
+- Refined chat hover treatment and composer spacing without changing data flows.
+- Kept LiveKit and its control-bar CSS untouched pending real-media regression tests.
+- No new required dependencies, database changes or API changes.
+
 ## Phase 1 implementation scope
 
 - Extract stateless brand/avatar/badge UI to `v2/ui-kit.tsx`.
