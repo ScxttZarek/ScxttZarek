@@ -76,7 +76,7 @@ export function NovaApp(){
     if(view!=="text"||!followMessagesRef.current)return;
     const scroll=messageScrollRef.current;
     if(scroll)scroll.scrollTop=scroll.scrollHeight;
-  },[messages.length,view,selected]);
+  },[messages[messages.length-1]?.id,view,selected]);
   function observeChatScroll(){
     const node=messageScrollRef.current;
     if(node)followMessagesRef.current=node.scrollHeight-node.scrollTop-node.clientHeight<=100;

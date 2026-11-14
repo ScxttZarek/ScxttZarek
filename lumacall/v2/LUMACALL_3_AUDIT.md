@@ -84,3 +84,7 @@ Use a non-production preview deployment. Confirm Next.js and TypeScript build lo
 - Backend, secrets, existing accounts and PostgreSQL schema are not changed.
 - Build/typecheck and two-browser real capture tests must be independently documented; a successful build alone is not enough.
 
+
+## Chat regression follow-up
+
+When the message limit remains at 100 entries, the list now detects a change to the most recent message ID, not only a change to message count. This preserves follow-to-bottom behavior while still respecting the user scrolling older history.
