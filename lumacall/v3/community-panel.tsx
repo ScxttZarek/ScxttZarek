@@ -159,6 +159,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
   <section className="v3-community-dialog" role="dialog" aria-modal="true" aria-label="Configurações do servidor">
    <aside className="v3-community-nav">
     <div className="v3-community-brand"><Shield size={18}/><span>Configurações</span></div>
+    <button className={tab==="server"?"selected":""} onClick={()=>setTab("server")}><Shield size={16}/> Servidor</button>
     <button className={tab==="channels"?"selected":""} onClick={()=>setTab("channels")}><Hash size={16}/> Canais</button>
     <button className={tab==="roles"?"selected":""} onClick={()=>setTab("roles")}><Shield size={16}/> Cargos</button>
     <button className={tab==="members"?"selected":""} onClick={()=>setTab("members")}><Users size={16}/> Membros</button>
@@ -166,11 +167,30 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
     <div className="v3-community-nav-caption">LumaCall 3.0 · Comunidade</div>
    </aside>
    <div className="v3-community-content">
-    <header className="v3-community-heading"><div><span>SEU SERVIDOR</span><h2>{tab==="channels"?"Canais":tab==="roles"?"Cargos e permissões":tab==="members"?"Membros":"Banimentos"}</h2></div>
+    <header className="v3-community-heading"><div><span>SEU SERVIDOR</span><h2>{tab==="server"?"Visão geral":tab==="channels"?"Canais":tab==="roles"?"Cargos e permissões":tab==="members"?"Membros":"Banimentos"}</h2></div>
      <button type="button" className="v3-icon-btn" title="Fechar" aria-label="Fechar configurações" onClick={onClose}><X size={20}/></button>
     </header>
     {error&&<p className="v3-error" role="alert">{error}</p>}
     {refreshing?<p className="v3-muted">Carregando configurações…</p>:<>
+     {tab==="server"&&<>
+      <p className="v3-muted">Identidade visual e opções básicas do servidor.</p>
+      <div className="v3-server-presentation">
+       {serverIcon?<img src={serverIcon} alt="Ícone do servidor" width={78} height={78}/>:<div className="v3-server-fallback">{serverName.slice(0,2).toUpperCase()}</div>}
+       <div><strong>{serverName}</strong><small>Comunidade privada · até 6 membros</small></div>
+      </div>
+      {isOwner?<form className="v3-settings-form" onSubmit={e=>void saveServer(e)}>
+       <strong>Personalização</strong>
+       <label>Nome do servidor<input value={serverNameDraft} onChange={e=>setServerNameDraft(e.target.value)} minLength={3} maxLength={45} required/></label>
+       <label className="v3-server-upload">Alterar ícone <input type="file" accept="image/png,image/jpeg,image/webp" onChange={e=>void changeServerIcon(e.target.files?.[0])}/></label>
+       <button type="submit" className="v3-primary" disabled={busy}>Salvar informações</button>
+      </form>:<p className="v3-muted">Somente o dono pode alterar a identidade do servidor.</p>}
+      <div className="v3-settings-form">
+       <strong>Convite</strong>
+       <p className="v3-muted">Compartilhe este código apenas com quem deve participar do servidor.</p>
+       <div className="v3-invite-preview"><code>{inviteCode}</code><button type="button" onClick={()=>void navigator.clipboard.writeText(inviteCode).catch(()=>setError("Não foi possível copiar."))}>Copiar código</button></div>
+       {isOwner&&<button type="button" disabled={busy} onClick={()=>void rotateInvite()}>Renovar código e invalidar o antigo</button>}
+      </div>
+     </>}
      {tab==="channels"&&<>
       <p className="v3-muted">Organize conversas e chamadas. Somente quem tem permissão pode alterar a estrutura.</p>
       <div className="v3-list">
