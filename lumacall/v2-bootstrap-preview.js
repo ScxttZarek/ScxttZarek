@@ -13,6 +13,8 @@ const copies=[
 ["v2/voice.tsx","components/v2/voice.tsx"],
 ["v2/install-app.tsx","components/v2/install-app.tsx"],
 ["v2/nova-app.tsx","components/v2/nova-app.tsx"],
+["v2/ui-kit.tsx","components/v2/ui-kit.tsx"],
+["v2/shell-parts.tsx","components/v2/shell-parts.tsx"],
 ["v2/v2.css","app/nova/v2.css"],
 ["v2/demo-page.tsx","app/nova/demo/page.tsx"]
 ];
