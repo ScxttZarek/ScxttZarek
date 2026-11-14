@@ -1,6 +1,11 @@
 const fs=require("fs"),path=require("path");
 const copies=[
 ["v2/database.ts","lib/v2/database.ts"],
+["v3/client.ts","components/v3/client.ts"],
+["v3/community-panel.tsx","components/v3/community-panel.tsx"],
+["v3/dm-panel.tsx","components/v3/dm-panel.tsx"],
+["v3/call-chat-panel.tsx","components/v3/call-chat-panel.tsx"],
+["v3/community.css","app/nova/community.css"],
 ["v3/community.ts","lib/v3/community.ts"],
 ["v3/channels-route.ts","app/api/v3/channels/route.ts"],
 ["v3/roles-route.ts","app/api/v3/roles/route.ts"],
@@ -37,5 +42,5 @@ for(const [source,dest] of copies){
   fs.mkdirSync(path.dirname(dest),{recursive:true});
   fs.writeFileSync(dest,code);
 }
-fs.writeFileSync("app/nova/page.tsx",'import "./v2.css";\nimport "./call-stage.css";\nimport { NovaApp } from "@/components/v2/nova-app";\nexport const metadata={title:"LumaCall 2.0 — Nova interface"};\nexport default function Page(){return <NovaApp/>;}\n');
+fs.writeFileSync("app/nova/page.tsx",'import "./v2.css";\nimport "./call-stage.css";\nimport "./community.css";\nimport { NovaApp } from "@/components/v2/nova-app";\nexport const metadata={title:"LumaCall 2.0 — Nova interface"};\nexport default function Page(){return <NovaApp/>;}\n');
 console.log("LUMACALL_V2_BOOTSTRAP=installed; route=/nova; main-unchanged");
