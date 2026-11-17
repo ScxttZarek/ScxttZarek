@@ -141,3 +141,7 @@ CREATE TABLE IF NOT EXISTS v3_categories(
 );
 CREATE UNIQUE INDEX IF NOT EXISTS v3_categories_unique_name ON v3_categories(server_id,lower(name));
 ALTER TABLE v3_channels ADD COLUMN IF NOT EXISTS category_id uuid REFERENCES v3_categories(id) ON DELETE SET NULL;
+-- Per-voice-channel call chat, keeping old records through a default-channel backfill.
+ALTER TABLE v3_call_messages ADD COLUMN IF NOT EXISTS channel_id uuid REFERENCES v3_channels(id) ON DELETE SET NULL;
+UPDATE v3_call_messages m SET channel_id=(SELECT id FROM v3_channels WHERE server_id=m.server_id AND kind='voice' ORDER BY position LIMIT 1) WHERE m.channel_id IS NULL;
+CREATE INDEX IF NOT EXISTS v3_call_messages_channel_recent ON v3_call_messages(channel_id,id DESC);

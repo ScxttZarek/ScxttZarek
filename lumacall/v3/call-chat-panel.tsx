@@ -4,7 +4,7 @@ import { MessageCircle, Send, X } from "lucide-react";
 import { Avatar } from "../v2/ui-kit";
 import { apiV3,updateError,type ChatMessage } from "./client";
 
-export function CallChatPanel({serverId,onClose}:{serverId:string;onClose:()=>void}){
+export function CallChatPanel({channelId,onClose}:{channelId:string;onClose:()=>void}){
  const [messages,setMessages]=useState<ChatMessage[]>([]);
  const [draft,setDraft]=useState("");
  const [busy,setBusy]=useState(false);
@@ -14,21 +14,21 @@ export function CallChatPanel({serverId,onClose}:{serverId:string;onClose:()=>vo
  useEffect(()=>{
   let live=true;
   async function update(){
-   try{const data=await apiV3<{messages:ChatMessage[]}>("/api/v3/call-messages?serverId="+encodeURIComponent(serverId));if(live)setMessages(data.messages);}
+   try{const data=await apiV3<{messages:ChatMessage[]}>("/api/v3/call-messages?channelId="+encodeURIComponent(channelId));if(live)setMessages(data.messages);}
    catch(e){if(live)setError(updateError(e));}
   }
   void update();
   const timer=window.setInterval(()=>void update(),3500);
   return()=>{live=false;clearInterval(timer);};
- },[serverId]);
+ },[channelId]);
  useEffect(()=>{if(follow.current&&scroll.current)scroll.current.scrollTop=scroll.current.scrollHeight;},[messages[messages.length-1]?.id]);
  async function send(e:FormEvent){
   e.preventDefault();if(!draft.trim()||busy)return;
   setBusy(true);setError("");
   try{
-   await apiV3("/api/v3/call-messages","POST",{serverId,content:draft.trim()});
+   await apiV3("/api/v3/call-messages","POST",{channelId,content:draft.trim()});
    setDraft("");follow.current=true;
-   const result=await apiV3<{messages:ChatMessage[]}>("/api/v3/call-messages?serverId="+encodeURIComponent(serverId));
+   const result=await apiV3<{messages:ChatMessage[]}>("/api/v3/call-messages?channelId="+encodeURIComponent(channelId));
    setMessages(result.messages);
   }catch(e){setError(updateError(e));}finally{setBusy(false);}
  }
