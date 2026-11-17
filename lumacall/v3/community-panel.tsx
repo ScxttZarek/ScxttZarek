@@ -217,7 +217,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
      onChange={e=>{if(editChannelId)void toggleGrant(editChannelId,role.id,e.target.checked)}}/>
    <span className="v3-role-dot" style={{background:role.color}}/>{role.name}
   </label>)}
- </div>
+ </div>}
         <div className="v3-inline-actions"><button type="submit" disabled={busy} className="v3-primary">Salvar alterações</button><button type="button" onClick={()=>setEditChannelId(null)}>Cancelar</button></div>
        </form>}
        <form className="v3-settings-form" onSubmit={e=>void createChannel(e)}>
