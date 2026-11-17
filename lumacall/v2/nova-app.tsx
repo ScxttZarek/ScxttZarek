@@ -12,7 +12,7 @@ import { apiV3, updateError, type Channel, type Reaction } from "../v3/client";
 import { Edit3, Trash2, SmilePlus, Lock, MessageCircle } from "lucide-react";
 
 type User={id:string;name:string;name_key:string;avatar_data_url:string|null;badge:string|null;bio:string;presence:string};
-type Server={id:string;name:string;invite_code:string;member_count:number;role:string};
+type Server={id:string;name:string;icon_data_url:string|null;invite_code:string;member_count:number;role:string};
 type Member={id:string;name:string;badge:string|null;avatar_data_url:string|null;role:string;bio?:string;presence?:string};
 type Message={id:string;user_id:string;name:string;badge:string|null;avatar_data_url:string|null;content:string;created_at:string;edited_at?:string|null;deleted_at?:string|null};
 type Modal="create"|"join"|"profile"|null;
@@ -285,7 +285,7 @@ export function NovaApp(){
         <MembersPanel members={members} currentUserId={user.id} onMessage={id=>openDM(id)}/>
       </div>}
     </div>
-    {showCommunity&&selected&&<CommunityPanel serverId={selected} members={members} onClose={()=>setShowCommunity(false)}
+    {showCommunity&&selected&&<CommunityPanel serverId={selected} serverName={selectedServer.name} serverIcon={selectedServer.icon_data_url} inviteCode={selectedServer.invite_code} isOwner={selectedServer.role==="owner"} members={members} onClose={()=>setShowCommunity(false)}
       onUpdated={()=>{void loadChannels(selected);if(textChannelId)void loadContent(selected,textChannelId)}}
       onOpenDm={id=>openDM(id)}/>}
     {dmOpen&&<DMPanel userId={user.id} initialPeerId={dmPeer} onClose={()=>{setDmOpen(false);setDmPeer(null)}}/>}
