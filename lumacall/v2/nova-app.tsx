@@ -8,7 +8,7 @@ import { InstallLumaCall } from "./install-app";
 import { CommunityPanel } from "../v3/community-panel";
 import { DMPanel } from "../v3/dm-panel";
 import { CallChatPanel } from "../v3/call-chat-panel";
-import { apiV3, updateError, type Channel, type Reaction } from "../v3/client";
+import { apiV3, updateError, type Channel, type Category, type Reaction } from "../v3/client";
 import { Edit3, Trash2, SmilePlus, Lock, MessageCircle } from "lucide-react";
 
 type User={id:string;name:string;name_key:string;avatar_data_url:string|null;badge:string|null;bio:string;presence:string};
@@ -46,6 +46,8 @@ export function NovaApp(){
   const [sidebarOpen,setSidebarOpen]=useState(false);
   const [lastCopied,setLastCopied]=useState(false);
   const [channels,setChannels]=useState<Channel[]>([]);
+  const [categories,setCategories]=useState<Category[]>([]);
+  const [collapsedCategories,setCollapsedCategories]=useState<Record<string,boolean>>({});
   const [textChannelId,setTextChannelId]=useState<string|null>(null);
   const [voiceChannelId,setVoiceChannelId]=useState<string|null>(null);
   const [canManageChannels,setCanManageChannels]=useState(false);
@@ -79,9 +81,12 @@ export function NovaApp(){
   useEffect(()=>{if(user)void loadServers();else{setServers([]);setSelected(null)}},[user?.id]);
   async function loadChannels(serverId:string){
     try{
-      const data=await apiV3<{channels:Channel[];canManage:boolean}>("/api/v3/channels?serverId="+encodeURIComponent(serverId));
+      const [data,groups]=await Promise.all([
+        apiV3<{channels:Channel[];canManage:boolean}>("/api/v3/channels?serverId="+encodeURIComponent(serverId)),
+        apiV3<{categories:Category[]}>("/api/v3/categories?serverId="+encodeURIComponent(serverId))
+      ]);
       if(activeServerRef.current!==serverId)return;
-      setChannels(data.channels);setCanManageChannels(data.canManage);
+      setChannels(data.channels);setCategories(groups.categories);setCanManageChannels(data.canManage);
       setTextChannelId(current=>data.channels.some(c=>c.id===current&&c.kind==="text")?current:data.channels.find(c=>c.kind==="text")?.id||null);
       setVoiceChannelId(current=>data.channels.some(c=>c.id===current&&c.kind==="voice")?current:data.channels.find(c=>c.kind==="voice")?.id||null);
     }catch(e){if(activeServerRef.current===serverId)setError(updateError(e));}
@@ -102,7 +107,7 @@ export function NovaApp(){
   useEffect(()=>{
     activeServerRef.current=selected;
     activeChannelRef.current=null;contentRequestRef.current++;followMessagesRef.current=true;
-    setChannels([]);setTextChannelId(null);setVoiceChannelId(null);setMembers([]);setMessages([]);setReactions([]);
+    setChannels([]);setCategories([]);setCollapsedCategories({});setTextChannelId(null);setVoiceChannelId(null);setMembers([]);setMessages([]);setReactions([]);
     if(selected)void loadChannels(selected);
   },[selected]);
   useEffect(()=>{
@@ -195,6 +200,36 @@ export function NovaApp(){
     try{await apiV3("/api/v3/security","POST",{action:"change-secret",current:currentSecret,next:nextSecret});setProfileNotice("Código secreto alterado. Outras sessões foram encerradas.");setCurrentSecret("");setNextSecret("");}
     catch(e){setError(updateError(e));}finally{setBusy(false);}
   }
+  function selectChannel(c:Channel){
+    if(c.kind==="text"){
+      activeChannelRef.current=c.id;
+      setTextChannelId(c.id);setView("text");setEditingMessage(null);
+    }else{
+      setVoiceChannelId(c.id);setView("voice");setCallChatOpen(false);
+    }
+    setSidebarOpen(false);
+  }
+  function renderChannelButton(c:Channel){
+    const active=view===c.kind&&(c.kind==="text"?textChannelId===c.id:voiceChannelId===c.id);
+    return <button type="button" key={c.id} className={"v2-channel "+(active?"active":"")} title={c.name} onClick={()=>selectChannel(c)}>
+      {c.kind==="text"?<Hash size={18}/>:<Headphones size={18}/>}<span>{c.name}</span>
+      {c.is_private&&<Lock className="v3-channel-private" size={13}/>}
+    </button>;
+  }
+  function renderChannels(kind:"text"|"voice"){
+    const ungrouped=channels.filter(c=>c.kind===kind&&!c.category_id);
+    const grouped=categories.map(group=>({group,items:channels.filter(c=>c.kind===kind&&c.category_id===group.id)})).filter(x=>x.items.length>0);
+    return <>
+      {ungrouped.map(renderChannelButton)}
+      {grouped.map(({group,items})=><div className="v3-channel-category" key={kind+"-"+group.id}>
+        <button type="button" className="v3-category-toggle" onClick={()=>setCollapsedCategories(old=>({...old,[kind+group.id]:!old[kind+group.id]}))}
+          aria-expanded={!collapsedCategories[kind+group.id]} title={group.name}>
+          <ChevronDown size={14} className={collapsedCategories[kind+group.id]?"collapsed":""}/><span>{group.name}</span><small>{items.length}</small>
+        </button>
+        {!collapsedCategories[kind+group.id]&&<div className="v3-category-channels">{items.map(renderChannelButton)}</div>}
+      </div>)}
+    </>;
+  }
   async function copyInvite(){if(!selectedServer)return;try{await navigator.clipboard.writeText(selectedServer.invite_code);setLastCopied(true);window.setTimeout(()=>setLastCopied(false),1700);}catch{setError("Não foi possível copiar. O código é "+selectedServer.invite_code)}}
   if(loading)return <div className="v2-loading"><Brand/><p>Carregando a nova versão...</p></div>;
   if(setupError)return <main className="v2-auth-page"><section className="v2-auth-panel"><Brand/><h1>Nova versão em preparação</h1><p>Para salvar nomes exclusivos, fotos e servidores, o banco de dados precisa ser conectado. A versão atual do LumaCall continua funcionando normalmente.</p><a href="/" className="v2-primary v2-full">Voltar ao LumaCall</a></section></main>;
@@ -207,15 +242,9 @@ export function NovaApp(){
       <div className="v2-channel-scroll">
         {selectedServer?<>
           <div className="v2-channel-section v3-channel-heading">CANAIS DE TEXTO{canManageChannels&&<button type="button" className="v3-section-action" title="Gerenciar canais" onClick={()=>setShowCommunity(true)}><Plus size={15}/></button>}</div>
-          {channels.filter(c=>c.kind==="text").map(c=><button key={c.id} type="button" className={"v2-channel "+(view==="text"&&c.id===textChannelId?"active":"")}
-            onClick={()=>{activeChannelRef.current=c.id;setTextChannelId(c.id);setView("text");setSidebarOpen(false);setEditingMessage(null)}}>
-            <Hash size={18}/><span>{c.name}</span>{c.is_private&&<Lock className="v3-channel-private" size={13}/>}
-          </button>)}
+          {renderChannels("text")}
           <div className="v2-channel-section v3-channel-heading">CANAIS DE VOZ{canManageChannels&&<button type="button" className="v3-section-action" title="Gerenciar canais de voz" onClick={()=>setShowCommunity(true)}><Plus size={15}/></button>}</div>
-          {channels.filter(c=>c.kind==="voice").map(c=><button key={c.id} type="button" className={"v2-channel "+(view==="voice"&&c.id===voiceChannelId?"active":"")}
-            onClick={()=>{setVoiceChannelId(c.id);setView("voice");setSidebarOpen(false);setCallChatOpen(false)}}>
-            <Headphones size={18}/><span>{c.name}</span>{c.is_private&&<Lock className="v3-channel-private" size={13}/>}
-          </button>)}
+          {renderChannels("voice")}
           {channels.length===0&&<p className="v3-channel-list-empty">Carregando canais…</p>}
         </>:<div className="v2-sidebar-empty"><ServerIcon size={26}/><p>Crie seu primeiro servidor ou entre pelo código de convite.</p></div>}
       </div>

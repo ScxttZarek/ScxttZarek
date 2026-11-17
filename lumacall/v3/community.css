@@ -142,3 +142,14 @@
 .v3-server-icon-image{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
 .v3-member-chat-button{display:grid;place-items:center;flex:0 0 auto;margin-left:auto;border:0;background:none;color:#bdbdbd;padding:6px;border-radius:7px}
 .v3-member-chat-button:hover{background:#292929;color:#eee}
+
+/* Compact collapsible categories in the channel sidebar */
+.v3-channel-category{margin:7px 0 4px;min-width:0}
+.v3-category-toggle{display:flex;align-items:center;width:100%;gap:7px;padding:8px 9px;border:0;border-radius:6px;background:transparent;color:#9a9a9a;text-align:left;font-size:10px;font-weight:800;letter-spacing:.025em}
+.v3-category-toggle:hover{background:#222;color:#eee}
+.v3-category-toggle>svg{flex-shrink:0;transition:transform .14s}
+.v3-category-toggle>svg.collapsed{transform:rotate(-90deg)}
+.v3-category-toggle span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v3-category-toggle small{font-size:10px;color:#8c8c8c}
+.v3-category-channels{min-width:0;padding-left:8px}
+@media(prefers-reduced-motion:reduce){.v3-category-toggle>svg{transition:none}}
