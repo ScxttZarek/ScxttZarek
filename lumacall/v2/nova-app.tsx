@@ -285,7 +285,7 @@ export function NovaApp(){
         <MembersPanel members={members} currentUserId={user.id} onMessage={id=>openDM(id)}/>
       </div>}
     </div>
-    {showCommunity&&selected&&<CommunityPanel serverId={selected} serverName={selectedServer.name} serverIcon={selectedServer.icon_data_url} inviteCode={selectedServer.invite_code} isOwner={selectedServer.role==="owner"} members={members} onClose={()=>setShowCommunity(false)}
+    {showCommunity&&selected&&selectedServer&&<CommunityPanel serverId={selected} serverName={selectedServer.name} serverIcon={selectedServer.icon_data_url} inviteCode={selectedServer.invite_code} isOwner={selectedServer.role==="owner"} members={members} onClose={()=>setShowCommunity(false)}
       onUpdated={()=>{void loadChannels(selected);if(textChannelId)void loadContent(selected,textChannelId)}}
       onOpenDm={id=>openDM(id)}/>}
     {dmOpen&&<DMPanel userId={user.id} initialPeerId={dmPeer} onClose={()=>{setDmOpen(false);setDmPeer(null)}}/>}

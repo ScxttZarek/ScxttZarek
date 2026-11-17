@@ -22,9 +22,9 @@ export async function POST(request:Request){
   if(!/^[\p{L}\p{N}_ -]{1,32}$/u.test(name)||!["text","voice"].includes(String(kind)))return asJson("Nome ou tipo de canal inválido.");
   const count=await db<{n:number}>("SELECT count(*)::int AS n FROM v3_channels WHERE server_id=$1",[body.serverId]);
   if(count[0]?.n>=60)return asJson("Limite de 60 canais por servidor.",409);
-  if(b.categoryId!==undefined&&b.categoryId!==null){
-   if(!isUuid(b.categoryId))return asJson("Categoria inválida.");
-   const category=await db("SELECT 1 FROM v3_categories WHERE id=$1 AND server_id=$2",[b.categoryId,b.serverId]);
+  if(body.categoryId!==undefined&&body.categoryId!==null){
+   if(!isUuid(body.categoryId))return asJson("Categoria inválida.");
+   const category=await db("SELECT 1 FROM v3_categories WHERE id=$1 AND server_id=$2",[body.categoryId,body.serverId]);
    if(!category.length)return asJson("Categoria não pertence a este servidor.",400);
   }
   const position=(await db<{next:number}>("SELECT coalesce(max(position)+1,0)::int AS next FROM v3_channels WHERE server_id=$1 AND kind=$2",[body.serverId,kind]))[0]?.next||0;
