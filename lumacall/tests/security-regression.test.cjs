@@ -230,3 +230,11 @@ test("channel grant revocation checks effective permissions and evicts unauthori
  assert.ok(route.includes("revoked.map(p=>client.removeParticipant(roomName,p.identity,{revokeTokenTs}))"));
  assert.ok(route.includes('if(c.kind==="voice"&&!b.enabled)'));
 });
+
+test("role removals reconcile effective private voice room permissions",()=>{
+ const s=code("v3/roles-route.ts");
+ assert.ok(s.includes("async function reconcileRoleVoicePermissions(serverId:string)"));
+ assert.ok(s.includes("SELECT v3_can_read_channel($1::uuid,$2::uuid) AS allowed"));
+ assert.ok(s.includes("return await reportRoleVoiceCleanup(b.serverId)"));
+ assert.ok(s.includes("revoked.map(p=>client.removeParticipant(p.roomName,p.identity,{revokeTokenTs}))"));
+});

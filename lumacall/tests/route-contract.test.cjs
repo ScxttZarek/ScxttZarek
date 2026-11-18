@@ -331,3 +331,57 @@ test("adding a channel grant never disconnects existing participants",async()=>{
  assert.equal(r.status,200);assert.equal(r.body.ok,true);
  assert.equal(h.events.rooms.length,0);assert.equal(h.events.removed.length,0);
 });
+
+function roleCleanupHarness({command="unassign",active=true,blockedIdentity="00000000-0000-4000-8000-000000000004",allowedIdentity="00000000-0000-4000-8000-000000000005",failRemoval=false,failListing=false}={}){
+ const events={removed:[],listed:[],roleWrites:0};
+ const service={
+  listRooms:async names=>{events.listed.push(names);if(failListing)throw Error("LiveKit offline");return active?[{name:"v3-"+channelId}]:[];},
+  listParticipants:async()=>[{identity:blockedIdentity},{identity:allowedIdentity}],
+  removeParticipant:async(name,identity,opts)=>{events.removed.push({name,identity,opts});if(failRemoval)throw Error("removal failed");}
+ };
+ const role={id:threadId,priority:1,manage_channels:false,manage_messages:false,moderate_members:false,manage_roles:false};
+ const h=makeRoute("v3/roles-route.ts",{
+  respond:async(sql,args)=>{
+   if(sql.startsWith("SELECT id,priority,manage_channels,manage_messages,moderate_members,manage_roles FROM v3_roles"))return [role];
+   if(sql.startsWith("DELETE FROM v3_member_roles")||sql.startsWith("DELETE FROM v3_roles WHERE")){events.roleWrites++;return [];}
+   if(sql.startsWith("SELECT id FROM v3_channels WHERE server_id="))return [{id:channelId}];
+   if(sql.startsWith("SELECT v3_can_read_channel"))return [{allowed:args[1]===allowedIdentity}];
+   throw Error("Unexpected role SQL: "+sql);
+  },modules:{"@/lib/livekit/server":{getRoomService:()=>service}}
+ });
+ return {...h,events,blockedIdentity,allowedIdentity,command};
+}
+test("unassigning a role disconnects only users who lose access to a private voice room",async()=>{
+ const h=roleCleanupHarness();
+ const r=await result(await h.handlers.PATCH(request("/api/v3/roles","PATCH",{action:"unassign",serverId:channelId,userId:h.blockedIdentity,roleId:threadId})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,true);
+ assert.equal(r.body.removedParticipants,1);assert.equal(h.events.removed.length,1);
+ assert.equal(h.events.removed[0].identity,h.blockedIdentity);
+ assert.equal(h.events.roleWrites,1);
+});
+test("deleting a role reconciles current private voice call permissions",async()=>{
+ const h=roleCleanupHarness();
+ const r=await result(await h.handlers.DELETE(request("/api/v3/roles","DELETE",{serverId:channelId,roleId:threadId})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,true);
+ assert.equal(h.events.removed.length,1);assert.equal(h.events.roleWrites,1);
+});
+test("role changes warn after DB commit when LiveKit removal fails",async()=>{
+ const h=roleCleanupHarness({failRemoval:true});
+ const r=await result(await h.handlers.DELETE(request("/api/v3/roles","DELETE",{serverId:channelId,roleId:threadId})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,false);
+ assert.equal(r.body.failedRemovals,1);assert.match(r.body.warning,/não puderam ser atualizadas/);
+ assert.equal(h.events.roleWrites,1);
+});
+test("role changes warn when the LiveKit room service cannot be reached",async()=>{
+ const h=roleCleanupHarness({failListing:true});
+ const r=await result(await h.handlers.DELETE(request("/api/v3/roles","DELETE",{serverId:channelId,roleId:threadId})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,false);
+ assert.match(r.body.warning,/não foi possível confirmar/);
+ assert.equal(h.events.roleWrites,1);
+});
+test("role cleanup does not remove participants when no private voice call is active",async()=>{
+ const h=roleCleanupHarness({active:false});
+ const r=await result(await h.handlers.PATCH(request("/api/v3/roles","PATCH",{action:"unassign",serverId:channelId,userId:h.blockedIdentity,roleId:threadId})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,true);
+ assert.equal(h.events.removed.length,0);
+});

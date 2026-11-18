@@ -1,10 +1,58 @@
 import { db,getUser,asJson,isUuid,textValue,mutation,member,permission,json } from "@/lib/v3/community";
+import { getRoomService } from "@/lib/livekit/server";
 export const runtime="nodejs";
 type Rights={channels:boolean;messages:boolean;moderation:boolean;roles:boolean};
 type Role={id:string;priority:number;manage_channels:boolean;manage_messages:boolean;moderate_members:boolean;manage_roles:boolean};
 type Actor={owner:boolean;rank:number;rights:Rights};
 const keys:(keyof Rights)[]=["channels","messages","moderation","roles"];
 const empty:Rights={channels:false,messages:false,moderation:false,roles:false};
+// Removing a role assignment or deleting a role may revoke access to a
+// private voice room. Reconcile only active, private voice rooms, checking
+// effective permissions so users with another grant are not disconnected.
+async function reconcileRoleVoicePermissions(serverId:string){
+ const channels=await db<{id:string}>(
+  "SELECT id FROM v3_channels WHERE server_id=$1 AND kind='voice' AND is_private AND archived_at IS NULL",
+  [serverId]
+ );
+ if(!channels.length)return {disconnected:true,removedParticipants:0,failedRemovals:0};
+ const roomToChannel=new Map(channels.map(c=>["v3-"+c.id,c.id] as const));
+ const client=getRoomService();
+ const active=await client.listRooms([...roomToChannel.keys()]);
+ const activeRooms=active.filter(room=>roomToChannel.has(room.name));
+ const participantGroups=await Promise.all(activeRooms.map(async room=>({
+  roomName:room.name,channelId:roomToChannel.get(room.name)!,participants:await client.listParticipants(room.name)
+ })));
+ const checks=await Promise.all(participantGroups.flatMap(group=>
+  group.participants.map(async p=>{
+   if(!isUuid(p.identity))return {roomName:group.roomName,identity:p.identity,allowed:false};
+   const permitted=await db<{allowed:boolean}>(
+    "SELECT v3_can_read_channel($1::uuid,$2::uuid) AS allowed",
+    [group.channelId,p.identity]
+   );
+   return {roomName:group.roomName,identity:p.identity,allowed:permitted[0]?.allowed===true};
+  })
+ ));
+ const revoked=checks.filter(p=>!p.allowed);
+ if(!revoked.length)return {disconnected:true,removedParticipants:0,failedRemovals:0};
+ const revokeTokenTs=BigInt(Math.floor(Date.now()/1000)+30);
+ const results=await Promise.allSettled(
+  revoked.map(p=>client.removeParticipant(p.roomName,p.identity,{revokeTokenTs}))
+ );
+ const failedRemovals=results.filter(r=>r.status==="rejected").length;
+ if(failedRemovals)console.error("LumaCall role-change disconnection incomplete",{serverId,failedRemovals});
+ return {disconnected:failedRemovals===0,removedParticipants:results.length-failedRemovals,failedRemovals};
+}
+async function reportRoleVoiceCleanup(serverId:string){
+ try{
+  const cleanup=await reconcileRoleVoicePermissions(serverId);
+  if(!cleanup.disconnected)return json({ok:true,...cleanup,warning:"Cargo alterado, mas algumas chamadas privadas não puderam ser atualizadas. Verifique as salas."});
+  return json({ok:true,...cleanup});
+ }catch{
+  console.error("LumaCall role-change voice cleanup unverified",{serverId});
+  return json({ok:true,disconnected:false,warning:"Cargo alterado, mas não foi possível confirmar a desconexão das chamadas privadas."});
+ }
+}
+
 function parseRights(value:unknown):Rights|null{
  if(!value||typeof value!=="object"||Array.isArray(value))return null;
  const x=value as Record<string,unknown>;
@@ -92,9 +140,12 @@ export async function PATCH(request:Request){
    if(!canEdit(a,r))return asJson("Cargo de hierarquia superior.",403);
    if(!a.owner&&(b.userId===u.id||target.role==="owner"||(await highest(b.serverId,b.userId))>=a.rank||!within(rightSet(r),a.rights)))
     return asJson("Você não pode alterar seus próprios cargos ou os de usuários de hierarquia igual ou superior.",403);
-   if(b.action==="assign")await db("INSERT INTO v3_member_roles(server_id,user_id,role_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",[b.serverId,b.userId,b.roleId]);
-   else await db("DELETE FROM v3_member_roles WHERE server_id=$1 AND user_id=$2 AND role_id=$3",[b.serverId,b.userId,b.roleId]);
-   return json({ok:true});
+   if(b.action==="assign"){
+    await db("INSERT INTO v3_member_roles(server_id,user_id,role_id) VALUES($1,$2,$3) ON CONFLICT DO NOTHING",[b.serverId,b.userId,b.roleId]);
+    return json({ok:true});
+   }
+   await db("DELETE FROM v3_member_roles WHERE server_id=$1 AND user_id=$2 AND role_id=$3",[b.serverId,b.userId,b.roleId]);
+   return await reportRoleVoiceCleanup(b.serverId);
   }
   if(!isUuid(b.roleId))return asJson("Cargo inválido.");
   const r=await roleFor(b.serverId,b.roleId);if(!r)return asJson("Cargo não encontrado.",404);
@@ -117,6 +168,6 @@ export async function DELETE(request:Request){
   if(!canEdit(a,r)||(!a.owner&&!within(rightSet(r),a.rights)))return asJson("Cargo fora da sua hierarquia.",403);
   if(!a.owner&&await hasProtectedHolder(b.serverId,b.roleId,u.id,a.rank))return asJson("Não é possível excluir um cargo atribuído a um membro de hierarquia igual ou superior.",403);
   await db("DELETE FROM v3_roles WHERE id=$1 AND server_id=$2",[b.roleId,b.serverId]);
-  return json({ok:true});
+  return await reportRoleVoiceCleanup(b.serverId);
  }catch{return asJson("Não foi possível excluir o cargo.",503);}
 }
