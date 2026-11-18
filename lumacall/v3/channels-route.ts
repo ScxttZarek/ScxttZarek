@@ -1,4 +1,5 @@
 import { db,getUser,asJson,isUuid,textValue,mutation,member,permission,json } from "@/lib/v3/community";
+import { getRoomService } from "@/lib/livekit/server";
 export const runtime="nodejs";
 export async function GET(request:Request){
  try{
@@ -64,7 +65,10 @@ export async function PATCH(request:Request){
   const name=b.name===undefined?c.name:textValue(b.name,32);
   if(!/^[\p{L}\p{N}_ -]{1,32}$/u.test(name))return asJson("Nome inválido.");
   const position=Number.isInteger(b.position)&&Number(b.position)>=0&&Number(b.position)<1000?Number(b.position):null;
-  const updated=await db("UPDATE v3_channels SET name=$1,is_private=coalesce($2,is_private),position=coalesce($3,position),category_id=$5 WHERE id=$4 RETURNING id,name,kind,position,is_private,category_id",[name,typeof b.isPrivate==="boolean"?b.isPrivate:null,position,b.channelId,nextCategory]);
+  // Repeat the irreversible privacy rule inside the UPDATE itself. A second
+  // admin can privatize the channel after the first SELECT above.
+  const updated=await db("UPDATE v3_channels SET name=$1,is_private=coalesce($2,is_private),position=coalesce($3,position),category_id=$5 WHERE id=$4 AND archived_at IS NULL AND (NOT is_private OR coalesce($2::boolean,true)) RETURNING id,name,kind,position,is_private,category_id",[name,typeof b.isPrivate==="boolean"?b.isPrivate:null,position,b.channelId,nextCategory]);
+  if(!updated[0])return asJson("O canal foi arquivado ou tornou-se privado durante a edição. Atualize os canais.",409);
   return json({channel:updated[0]});
  }catch(e){if(String(e).includes("23505"))return asJson("Já existe um canal com esse nome.",409);return asJson("Não foi possível atualizar o canal.",503);}
 }
@@ -88,6 +92,23 @@ export async function DELETE(request:Request){
    [b.channelId]
   );
   if(!archived.length)return asJson("O canal já foi arquivado.",409);
+  if(c.kind==="voice"){
+   // Archiving denies new tokens but does not disconnect existing LiveKit
+   // participants. Close an active room immediately, without touching chat.
+   // Previously issued tokens may still be valid until their short TTL ends.
+   const roomName="v3-"+b.channelId;
+   try{
+    const client=getRoomService();
+    const rooms=await client.listRooms([roomName]);
+    if(rooms.some(room=>room.name===roomName))await client.deleteRoom(roomName);
+   }catch{
+    // The DB archive already committed. Don't retry it or report complete
+    // disconnection if the external service could not be reached.
+    console.error("LumaCall archived voice room could not be closed",{channelId:b.channelId});
+    return json({ok:true,archived:true,disconnected:false,warning:"Canal arquivado, mas não foi possível confirmar o encerramento da chamada. Verifique a sala."});
+   }
+   return json({ok:true,archived:true,disconnected:true});
+  }
   return json({ok:true,archived:true});
  }catch{return asJson("Não foi possível excluir o canal.",503);}
 }

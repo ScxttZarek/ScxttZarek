@@ -220,3 +220,58 @@ test("kick with no active LiveKit rooms does not make unnecessary disconnect cal
  assert.equal(r.status,200);assert.equal(r.body.disconnected,true);
  assert.equal(h.operations.removed.length,0);
 });
+
+function archiveHarness({kind="voice",active=true,failList=false,failDelete=false,updateRows=[{id:channelId}]}={}){
+ const events={deleted:[],lookups:[]};
+ const service={
+  listRooms:async names=>{events.lookups.push(names);if(failList)throw Error("listing failed");return active?[{name:"v3-"+channelId}]:[];},
+  deleteRoom:async name=>{events.deleted.push(name);if(failDelete)throw Error("delete failed");}
+ };
+ const h=makeRoute("v3/channels-route.ts",{
+  respond:async sql=>{
+   if(sql.startsWith("SELECT server_id,kind,name FROM v3_channels"))return [{server_id:channelId,kind,name:"voice-room"}];
+   if(sql.startsWith("SELECT count(*)::int AS n FROM v3_channels"))return [{n:2}];
+   if(sql.startsWith("UPDATE v3_channels SET archived_at"))return updateRows;
+   throw Error("Unexpected archive SQL: "+sql);
+  },modules:{"@/lib/livekit/server":{getRoomService:()=>service}}
+ });
+ return {...h,events};
+}
+test("archiving a voice channel disconnects its active LiveKit room",async()=>{
+ const h=archiveHarness();
+ const r=await result(await h.handlers.DELETE(request("/api/v3/channels","DELETE",{channelId})));
+ assert.equal(r.status,200);assert.equal(r.body.archived,true);assert.equal(r.body.disconnected,true);
+ assert.deepEqual(Array.from(h.events.deleted),["v3-"+channelId]);
+ assert.match(h.calls[2].sql,/archived_at=now\(\)/);
+});
+test("archiving a voice channel without active LiveKit room is idempotent for media",async()=>{
+ const h=archiveHarness({active:false});
+ const r=await result(await h.handlers.DELETE(request("/api/v3/channels","DELETE",{channelId})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,true);assert.equal(h.events.deleted.length,0);
+});
+test("archive reports an explicit warning if LiveKit deletion fails after database commit",async()=>{
+ const h=archiveHarness({failDelete:true});
+ const r=await result(await h.handlers.DELETE(request("/api/v3/channels","DELETE",{channelId})));
+ assert.equal(r.status,200);assert.equal(r.body.archived,true);assert.equal(r.body.disconnected,false);
+ assert.match(r.body.warning,/não foi possível confirmar/);
+ assert.equal(h.calls.filter(x=>x.sql.includes("UPDATE v3_channels SET archived_at")).length,1);
+});
+test("archive reports a warning when LiveKit discovery fails without rolling back database",async()=>{
+ const h=archiveHarness({failList:true});
+ const r=await result(await h.handlers.DELETE(request("/api/v3/channels","DELETE",{channelId})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,false);
+ assert.equal(h.events.deleted.length,0);assert.equal(h.calls.length,3);
+});
+test("concurrent private-channel change is rejected by the atomic SQL update",async()=>{
+ const h=makeRoute("v3/channels-route.ts",{
+  respond:async sql=>{
+   if(sql.startsWith("SELECT server_id,kind,name,category_id,is_private"))return [{server_id:channelId,kind:"text",name:"public-room",category_id:null,is_private:false}];
+   if(sql.startsWith("UPDATE v3_channels SET name="))return [];
+   throw Error("Unexpected edit SQL: "+sql);
+  },modules:{"@/lib/livekit/server":{getRoomService:()=>({})}}
+ });
+ const r=await result(await h.handlers.PATCH(request("/api/v3/channels","PATCH",{channelId,name:"public-room",isPrivate:false})));
+ assert.equal(r.status,409);
+ assert.match(h.calls[1].sql,/NOT is_private OR coalesce\(\$2::boolean,true\)/);
+ assert.match(h.calls[1].sql,/archived_at IS NULL/);
+});

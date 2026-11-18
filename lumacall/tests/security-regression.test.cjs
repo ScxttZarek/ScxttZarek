@@ -214,3 +214,11 @@ test("moderation emits visible warning when LiveKit disconnection is incomplete"
  assert.ok(panel.includes("result.warning"));
  assert.ok(panel.includes('title="Arquivar canal"'));
 });
+
+test("channel privacy updates are atomic and voice archive closes the LiveKit room",()=>{
+ const s=code("v3/channels-route.ts");
+ assert.ok(s.includes("AND archived_at IS NULL AND (NOT is_private OR coalesce($2::boolean,true))"));
+ assert.ok(s.includes('if(!updated[0])return asJson('));
+ assert.ok(s.includes('if(rooms.some(room=>room.name===roomName))await client.deleteRoom(roomName)'));
+ assert.ok(s.includes('disconnected:false,warning:'));
+});
