@@ -40,6 +40,13 @@ Use **contas descartáveis** em um ambiente isolado e registre resultado, data, 
 | SEC-07 | Gestor de cargos tenta atribuir a si privilégios superiores | 403; cargos não alterados | MANUAL PENDENTE |
 | SEC-08 | Moderador bane participante já conectado à LiveKit | Associação encerrada e participante desconectado; verificar tokens ainda válidos | MANUAL PENDENTE |
 | SEC-09 | Endpoint legado `/api/v2/voice` é invocado | Não fornece um atalho inseguro para obter token | MANUAL PENDENTE |
+| SEC-10 | Dois administradores tornam um canal público/privado simultaneamente | Nenhuma operação pode reclassificar um canal privado como público | MANUAL PENDENTE |
+| SEC-11 | Arquivar canal de voz com sessão LiveKit ativa | A sala é encerrada; histórico não é publicado em outro canal | MANUAL PENDENTE |
+| SEC-12 | Revogar um cargo de um canal privado de voz com uma chamada ativa | Apenas quem perdeu todos os direitos é desconectado; outros permanecem | MANUAL PENDENTE |
+| SEC-13 | Revogar um cargo do membro durante uma chamada privada | Permissão efetiva é reavaliada; acesso perdido desconecta | MANUAL PENDENTE |
+| SEC-14 | Excluir cargo concedendo acesso a um canal de voz | Sessões que perderam acesso são revogadas; demais preservadas | MANUAL PENDENTE |
+| SEC-15 | Tentar reconectar com token LiveKit emitido antes do arquivamento ou da revogação | Não permitir continuidade do acesso revogado; testar dentro da validade do token | MANUAL PENDENTE |
+| SEC-16 | Simular falha de remoção de participante no LiveKit em ambiente isolado | Administrador vê aviso explícito de desconexão não confirmada | MANUAL PENDENTE |
 | MSG-01 | Enviar mensagem durante mudança de canal | Mensagem só é publicada no canal autorizado | MANUAL PENDENTE |
 | MSG-02 | Carregar página anterior do histórico com mais de 100 registros | Sem duplicatas; scroll preservado; mensagens recentes mantidas | MANUAL PENDENTE |
 | MSG-03 | Reagir enquanto autorização do canal é removida | Reação negada após revogação | MANUAL PENDENTE |
@@ -73,10 +80,19 @@ Use **contas descartáveis** em um ambiente isolado e registre resultado, data, 
 9. Após cada novo deployment, consultar **apenas** alertas Vercel recebidos depois de `2026-11-18T06:52:11Z`, relacionando o **SHA do corpo do e-mail** com o deployment. Alertas de commits antigos podem chegar atrasados.
 10. Marcar pronto para lançamento público somente após os gates e as evidências necessárias.
 
+## Resultado das validações automatizadas desta etapa
+
+- Na candidata `944d434e1e536dd8ee14fec2f39e272c47fab7c6c`, a Vercel reportou 74 testes aprovados e 0 falhas na rotina de build. A Preview ficou READY.
+- O conjunto inclui testes executáveis dos handlers com o RoomServiceClient simulado para verificar encerramento de salas, revogação de grants, remoção/exclusão de cargos e falhas parciais.
+- O Neon confirmou os planos SQL de consulta de permissão, exclusão de grant e UPDATE com proteção atômica via EXPLAIN em branch de teste, sem ANALYZE nem gravações.
+- **Essas validações não substituem a verificação de chamadas reais e concorrência entre LiveKit e Neon.** Todos os testes da matriz acima permanecem manuais pendentes.
+
 ## Riscos não resolvidos
 
 - A verificação de autorização na mesma instrução SQL reduz janelas entre consulta e gravação, mas **não é uma prova formal contra todas as corridas entre transações**. Confirmar cenários concorrentes isolados.
 - Tokens LiveKit emitidos previamente e revogação imediata exigem teste com mídia e moderação reais.
+- Encerrar salas LiveKit e remover participantes bloqueia sessões presentes, mas tokens previamente emitidos exigem verificação de não reutilização durante sua validade (TTL atual de 10 minutos). Não declarar revogação absoluta sem testes.
+- Revogações concorrentes com autorização/entrada ainda exigem testes de integração sob concorrência real; a checagem no SQL e a limpeza em chamadas reduzem, mas não zeram todas as janelas entre serviços.
 - Mensagens usam polling; não anunciar WebSocket/SSE/tempo real genuíno sem implementação comprovada.
 - Limitação de taxa em memória não basta, sozinha, para proteger várias instâncias serverless contra abuso distribuído.
 - Testes de contrato com mocks não substituem integração real com Neon, LiveKit ou testes em Android/iOS.
