@@ -453,3 +453,30 @@ test("deleting a role revokes offline member tokens without revoking valid alter
  assert.ok(h.events.removed.some(x=>x.identity===h.offlineIdentity));
  assert.ok(!h.events.removed.some(x=>x.identity===h.allowedIdentity));
 });
+
+function inviteHarness({canUpdate=true}={}){
+ const crypto={randomBytes:()=>({toString:()=>"0123456789ab"})};
+ return makeRoute("v3/server-settings-route.ts",{
+  modules:{"node:crypto":crypto},
+  respond:async sql=>{
+   if(sql.startsWith("UPDATE v2_servers s SET invite_code="))return canUpdate?[{id:channelId}]:[];
+   throw Error("Unexpected invite SQL: "+sql);
+  }
+ });
+}
+test("rotating a server invite enforces owner membership inside the UPDATE",async()=>{
+ const h=inviteHarness({canUpdate:false});
+ const r=await result(await h.handlers.POST(request("/api/v3/server-settings","POST",{serverId:channelId})));
+ assert.equal(r.status,403);assert.equal(h.calls.length,1);
+ assert.match(h.calls[0].sql,/m.role='owner'/);
+ assert.match(h.calls[0].sql,/m.user_id=\$3::uuid/);
+ assert.equal(h.calls[0].args[2],user.id);
+});
+test("authorized owner can rotate invite without changing other server settings",async()=>{
+ const h=inviteHarness({canUpdate:true});
+ const r=await result(await h.handlers.POST(request("/api/v3/server-settings","POST",{serverId:channelId})));
+ assert.equal(r.status,200);assert.equal(r.body.invite,"0123456789AB");
+ assert.equal(h.calls.length,1);
+ assert.equal(h.calls[0].args[1],channelId);
+ assert.match(h.calls[0].sql,/RETURNING s.id/);
+});

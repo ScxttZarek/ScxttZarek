@@ -254,3 +254,10 @@ test("voice revocation checks offline members' old access tokens",()=>{
  assert.ok(ch.includes("const identities=[...new Set("));
  assert.ok(r.includes("new Set([...group.participants.map(p=>p.identity),...members.map(m=>m.identity)])"));
 });
+
+test("server invite rotation checks current owner membership in the updating SQL",()=>{
+ const source=code("v3/server-settings-route.ts");
+ assert.ok(source.includes("UPDATE v2_servers s SET invite_code=$1 WHERE s.id=$2::uuid"));
+ assert.ok(source.includes("m.user_id=$3::uuid AND m.role='owner'"));
+ assert.ok(source.includes('if(!updated.length)return asJson("Sem permissão para renovar o convite.",403)'));
+});

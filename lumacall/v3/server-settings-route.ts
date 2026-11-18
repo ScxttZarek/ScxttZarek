@@ -48,7 +48,14 @@ export async function POST(request:Request){
   for(let i=0;i<4;i++){
    const invite=randomBytes(6).toString("hex").toUpperCase();
    try{
-    await db("UPDATE v2_servers SET invite_code=$1 WHERE id=$2",[invite,b.serverId]);
+    // Recheck ownership in the UPDATE, not only in the earlier membership
+    // lookup; ownership might change while generating the invite token.
+    const updated=await db<{id:string}>(
+     "UPDATE v2_servers s SET invite_code=$1 WHERE s.id=$2::uuid "+
+     "AND EXISTS(SELECT 1 FROM v2_memberships m WHERE m.server_id=s.id AND m.user_id=$3::uuid AND m.role='owner') RETURNING s.id",
+     [invite,b.serverId,user.id]
+    );
+    if(!updated.length)return asJson("Sem permissão para renovar o convite.",403);
     return json({ok:true,invite});
    }catch(e){if(!String(e).includes("23505"))throw e;}
   }
