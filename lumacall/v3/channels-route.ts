@@ -4,13 +4,18 @@ export const runtime="nodejs";
 // Revoking a private voice-channel grant must also affect an existing call.
 // We check the *current* effective permission, not merely role membership,
 // because a user may retain access through a different authorized role.
-async function removeUnauthorizedVoiceParticipants(channelId:string){
+async function removeUnauthorizedVoiceParticipants(channelId:string,serverId:string,roleId:string){
  const roomName="v3-"+channelId,client=getRoomService();
  const active=await client.listRooms([roomName]);
  if(!active.some(room=>room.name===roomName))return {disconnected:true,removedParticipants:0,failedRemovals:0};
  const participants=await client.listParticipants(roomName);
- const decisions=await Promise.all(participants.map(async participant=>{
-  const identity=participant.identity;
+ // Include former grantees who have left, to revoke their cached tokens.
+ const former=await db<{identity:string}>(
+  "SELECT user_id::text AS identity FROM v3_member_roles WHERE server_id=$1 AND role_id=$2",
+  [serverId,roleId]
+ );
+ const identities=[...new Set([...participants.map(p=>p.identity),...former.map(p=>p.identity)])];
+ const decisions=await Promise.all(identities.map(async identity=>{
   if(!isUuid(identity))return {identity,allowed:false};
   const access=await db<{allowed:boolean}>(
    "SELECT v3_can_read_channel($1::uuid,$2::uuid) AS allowed",
@@ -82,7 +87,7 @@ export async function PATCH(request:Request){
     // The grant change already committed. A LiveKit failure must be visible
     // to moderators, not silently misrepresented as an immediate revocation.
     try{
-     const result=await removeUnauthorizedVoiceParticipants(b.channelId);
+     const result=await removeUnauthorizedVoiceParticipants(b.channelId,c.server_id,b.roleId);
      if(!result.disconnected)return json({ok:true,...result,warning:"Cargo atualizado, mas alguns participantes não puderam ser desconectados da chamada. Verifique a sala."});
      return json({ok:true,...result});
     }catch{

@@ -22,14 +22,19 @@ async function reconcileRoleVoicePermissions(serverId:string){
  const participantGroups=await Promise.all(activeRooms.map(async room=>({
   roomName:room.name,channelId:roomToChannel.get(room.name)!,participants:await client.listParticipants(room.name)
  })));
+ // Check cached credentials for members who have already left the call.
+ const members=activeRooms.length?await db<{identity:string}>(
+  "SELECT user_id::text AS identity FROM v2_memberships WHERE server_id=$1",
+  [serverId]
+ ):[];
  const checks=await Promise.all(participantGroups.flatMap(group=>
-  group.participants.map(async p=>{
-   if(!isUuid(p.identity))return {roomName:group.roomName,identity:p.identity,allowed:false};
+  [...new Set([...group.participants.map(p=>p.identity),...members.map(m=>m.identity)])].map(async identity=>{
+   if(!isUuid(identity))return {roomName:group.roomName,identity,allowed:false};
    const permitted=await db<{allowed:boolean}>(
     "SELECT v3_can_read_channel($1::uuid,$2::uuid) AS allowed",
-    [group.channelId,p.identity]
+    [group.channelId,identity]
    );
-   return {roomName:group.roomName,identity:p.identity,allowed:permitted[0]?.allowed===true};
+   return {roomName:group.roomName,identity,allowed:permitted[0]?.allowed===true};
   })
  ));
  const revoked=checks.filter(p=>!p.allowed);

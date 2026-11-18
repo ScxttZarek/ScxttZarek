@@ -276,7 +276,7 @@ test("concurrent private-channel change is rejected by the atomic SQL update",as
  assert.match(h.calls[1].sql,/archived_at IS NULL/);
 });
 
-function grantHarness({active=true,blockedIdentity="00000000-0000-4000-8000-000000000004",allowedIdentity="00000000-0000-4000-8000-000000000005",failRemoval=false,failListing=false}={}){
+function grantHarness({active=true,blockedIdentity="00000000-0000-4000-8000-000000000004",allowedIdentity="00000000-0000-4000-8000-000000000005",failRemoval=false,failListing=false,includeOffline=false,offlineIdentity="00000000-0000-4000-8000-000000000006"}={}){
  const events={rooms:[],listed:[],removed:[],writes:0};
  const participants=[{identity:blockedIdentity},{identity:allowedIdentity}];
  const client={
@@ -290,11 +290,12 @@ function grantHarness({active=true,blockedIdentity="00000000-0000-4000-8000-0000
    if(sql.startsWith("SELECT 1 FROM v3_roles"))return [{ok:true}];
    if(sql.startsWith("DELETE FROM v3_channel_grants")){events.writes++;return [];}
    if(sql.startsWith("INSERT INTO v3_channel_grants")){events.writes++;return [];}
+   if(sql.startsWith("SELECT user_id::text AS identity FROM v3_member_roles"))return [...[{identity:blockedIdentity},{identity:allowedIdentity}],...(includeOffline?[{identity:offlineIdentity}]:[])];
    if(sql.startsWith("SELECT v3_can_read_channel"))return [{allowed:args[1]===allowedIdentity}];
    throw Error("Unexpected grant SQL: "+sql);
   },modules:{"@/lib/livekit/server":{getRoomService:()=>client}}
  });
- return {...h,events,blockedIdentity,allowedIdentity};
+ return {...h,events,blockedIdentity,allowedIdentity,offlineIdentity};
 }
 test("revoking voice role grant disconnects only participants who have lost channel permission",async()=>{
  const h=grantHarness();
@@ -332,7 +333,7 @@ test("adding a channel grant never disconnects existing participants",async()=>{
  assert.equal(h.events.rooms.length,0);assert.equal(h.events.removed.length,0);
 });
 
-function roleCleanupHarness({command="unassign",active=true,blockedIdentity="00000000-0000-4000-8000-000000000004",allowedIdentity="00000000-0000-4000-8000-000000000005",failRemoval=false,failListing=false}={}){
+function roleCleanupHarness({command="unassign",active=true,blockedIdentity="00000000-0000-4000-8000-000000000004",allowedIdentity="00000000-0000-4000-8000-000000000005",failRemoval=false,failListing=false,includeOffline=false,offlineIdentity="00000000-0000-4000-8000-000000000006"}={}){
  const events={removed:[],listed:[],roleWrites:0};
  const service={
   listRooms:async names=>{events.listed.push(names);if(failListing)throw Error("LiveKit offline");return active?[{name:"v3-"+channelId}]:[];},
@@ -345,11 +346,12 @@ function roleCleanupHarness({command="unassign",active=true,blockedIdentity="000
    if(sql.startsWith("SELECT id,priority,manage_channels,manage_messages,moderate_members,manage_roles FROM v3_roles"))return [role];
    if(sql.startsWith("DELETE FROM v3_member_roles")||sql.startsWith("DELETE FROM v3_roles WHERE")){events.roleWrites++;return [];}
    if(sql.startsWith("SELECT id FROM v3_channels WHERE server_id="))return [{id:channelId}];
+   if(sql.startsWith("SELECT user_id::text AS identity FROM v2_memberships"))return [...[{identity:blockedIdentity},{identity:allowedIdentity}],...(includeOffline?[{identity:offlineIdentity}]:[])];
    if(sql.startsWith("SELECT v3_can_read_channel"))return [{allowed:args[1]===allowedIdentity}];
    throw Error("Unexpected role SQL: "+sql);
   },modules:{"@/lib/livekit/server":{getRoomService:()=>service}}
  });
- return {...h,events,blockedIdentity,allowedIdentity,command};
+ return {...h,events,blockedIdentity,allowedIdentity,offlineIdentity,command};
 }
 test("unassigning a role disconnects only users who lose access to a private voice room",async()=>{
  const h=roleCleanupHarness();
@@ -432,4 +434,22 @@ test("origin checker matches full origin, including scheme and port",()=>{
  assert.equal(verify(sample("https://test.local/api/v2/auth","https://test.local:8443")),false);
  assert.equal(verify(sample("https://test.local/api/v2/auth","https://attacker.test.local")),false);
  assert.equal(verify(sample("https://test.local/api/v2/auth",null)),false);
+});
+
+test("revoking a voice grant also revokes an offline former grantee's cached token",async()=>{
+ const h=grantHarness({includeOffline:true});
+ const r=await result(await h.handlers.PATCH(request("/api/v3/channels","PATCH",{action:"grant",channelId,roleId:threadId,enabled:false})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,true);
+ assert.equal(r.body.removedParticipants,2);
+ assert.ok(h.events.removed.some(x=>x.identity===h.offlineIdentity));
+ assert.ok(!h.events.removed.some(x=>x.identity===h.allowedIdentity));
+ assert.equal(new Set(h.events.removed.map(x=>x.identity)).size,2);
+});
+test("deleting a role revokes offline member tokens without revoking valid alternate grants",async()=>{
+ const h=roleCleanupHarness({includeOffline:true});
+ const r=await result(await h.handlers.DELETE(request("/api/v3/roles","DELETE",{serverId:channelId,roleId:threadId})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,true);
+ assert.equal(r.body.removedParticipants,2);
+ assert.ok(h.events.removed.some(x=>x.identity===h.offlineIdentity));
+ assert.ok(!h.events.removed.some(x=>x.identity===h.allowedIdentity));
 });

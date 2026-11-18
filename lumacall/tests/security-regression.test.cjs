@@ -246,3 +246,11 @@ test("DM conversation opening and CSRF origin checks are scoped to current autho
  assert.ok(dm.includes("if(!rows[0])return asJson(\"Conversa indisponível.\",403)"));
  assert.ok(auth.includes("new URL(origin).origin===new URL(request.url).origin"));
 });
+
+test("voice revocation checks offline members' old access tokens",()=>{
+ const ch=code("v3/channels-route.ts"),r=code("v3/roles-route.ts");
+ assert.ok(ch.includes("SELECT user_id::text AS identity FROM v3_member_roles"));
+ assert.ok(r.includes("SELECT user_id::text AS identity FROM v2_memberships"));
+ assert.ok(ch.includes("const identities=[...new Set("));
+ assert.ok(r.includes("new Set([...group.participants.map(p=>p.identity),...members.map(m=>m.identity)])"));
+});
