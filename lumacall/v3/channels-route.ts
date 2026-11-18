@@ -54,13 +54,11 @@ export async function PATCH(request:Request){
    const category=await db("SELECT 1 FROM v3_categories WHERE id=$1 AND server_id=$2",[b.categoryId,c.server_id]);
    if(!category.length)return asJson("Categoria não pertence a este servidor.",400);
   }
-  // Making a private channel public would expose its full history to every
-  // server member. Forbid it when historical text/call content exists.
+  // Privacy is irreversible for a channel: even a currently empty private
+  // channel might receive messages between a history check and an UPDATE.
+  // Create a separate public channel instead of declassifying its identity.
   if(c.is_private&&b.isPrivate===false){
-   const history=c.kind==="text"
-    ?await db("SELECT 1 FROM v2_messages WHERE channel_id=$1 LIMIT 1",[b.channelId])
-    :await db("SELECT 1 FROM v3_call_messages WHERE channel_id=$1 LIMIT 1",[b.channelId]);
-   if(history.length)return asJson("Este canal privado possui histórico. Crie um novo canal público em vez de expor mensagens antigas.",409);
+   return asJson("Este canal foi privado. Crie um novo canal público para preservar a privacidade.",409);
   }
   const nextCategory=b.categoryId===undefined?c.category_id:b.categoryId;
   const name=b.name===undefined?c.name:textValue(b.name,32);

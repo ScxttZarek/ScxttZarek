@@ -56,12 +56,20 @@ test("new channel messages and voice tokens use channel-granular authorization",
  assert.match(v,/ttl:"10m"/);
 });
 
-test("private channel history cannot be reclassified as public",()=>{
+test("a private channel can never be declassified by PATCH, even if initially empty",()=>{
  const s=code("v3/channels-route.ts");
- assert.match(s,/c\.is_private&&b\.isPrivate===false/);
- assert.match(s,/SELECT 1 FROM v2_messages WHERE channel_id=\$1/);
- assert.match(s,/SELECT 1 FROM v3_call_messages WHERE channel_id=\$1/);
- assert.match(s,/hist[oó]rico/);
+ assert.match(s,/c\\.is_private&&b\\.isPrivate===false/);
+ assert.match(s,/Crie um novo canal público/);
+ assert.doesNotMatch(s,/if\\(history\\.length\\)/);
+});
+test("channel message mutations recheck authorization in their writing SQL statement",()=>{
+ const s=code("v3/messages-route.ts");
+ assert.match(s,/INSERT INTO v2_messages\\(server_id,channel_id,user_id,content\\)/);
+ assert.match(s,/SELECT c\\.server_id,c\\.id,\\$2::uuid,\\$3::text FROM v3_channels/);
+ assert.match(s,/AND v3_can_read_channel\\(c\\.id,\\$2::uuid\\) RETURNING id::text/);
+ assert.match(s,/v3_can_read_channel\\(c\\.id,\\$3::uuid\\)/);
+ assert.match(s,/v3_user_permission\\(server_id,\\$2::uuid,'messages'\\)/);
+ assert.match(s,/if\\(!changed\\.length\\)return asJson/);
 });
 test("invisible peer presence is never exposed in direct-message thread lists",()=>{
  const s=code("v3/dm-route.ts");
