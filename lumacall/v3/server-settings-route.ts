@@ -7,19 +7,34 @@ export async function PATCH(request:Request){
   const user=await getUser();if(!user)return asJson("Entre na conta.",401);
   const b=await request.json() as Record<string,unknown>;
   if(!isUuid(b.serverId)||((await member(b.serverId,user.id))?.role!=="owner"))return asJson("Somente o dono pode editar o servidor.",403);
+  // Validate *every* requested field before issuing a single database update.
+  // This prevents a valid name from being saved when the accompanying icon fails.
+  const updates:string[]=[],values:(string|null)[]=[];
   if(b.name!==undefined){
-   const name=textValue(b.name,45);if(name.length<3||name.length>45)return asJson("Nome precisa ter entre 3 e 45 caracteres.");
-   await db("UPDATE v2_servers SET name=$1 WHERE id=$2",[name,b.serverId]);
+   const name=textValue(b.name,45);
+   if(name.length<3||name.length>45)return asJson("Nome precisa ter entre 3 e 45 caracteres.");
+   values.push(name);updates.push("name=$"+values.length);
   }
   if(b.icon!==undefined){
-   if(b.icon===null)await db("UPDATE v2_servers SET icon_data_url=NULL WHERE id=$1",[b.serverId]);
+   let icon:string|null;
+   if(b.icon===null)icon=null;
    else {
     const value=b.icon;
-    if(typeof value!=="string"||value.length>170000||!/^data:image\/webp;base64,[A-Za-z0-9+/]+=*$/.test(value))return asJson("Envie um ícone WEBP válido.");
+    if(typeof value!=="string"||value.length>170000||!/^data:image\\/webp;base64,[A-Za-z0-9+/]+=*$/.test(value))return asJson("Envie um ícone WEBP válido.");
     const bytes=Buffer.from(value.split(",")[1],"base64");
     if(bytes.length>120*1024||bytes.toString("ascii",0,4)!=="RIFF"||bytes.toString("ascii",8,12)!=="WEBP")return asJson("Ícone inválido ou muito grande.");
-    await db("UPDATE v2_servers SET icon_data_url=$1 WHERE id=$2",[value,b.serverId]);
+    icon=value;
    }
+   values.push(icon);updates.push("icon_data_url=$"+values.length);
+  }
+  if(updates.length){
+   // Recheck ownership in the same SQL statement that changes the row.
+   const rows=await db<{id:string}>(
+    "UPDATE v2_servers s SET "+updates.join(",")+" WHERE s.id=$"+(values.length+1)+"::uuid "+
+    "AND EXISTS(SELECT 1 FROM v2_memberships m WHERE m.server_id=s.id AND m.user_id=$"+(values.length+2)+"::uuid AND m.role='owner') RETURNING s.id",
+    [...values,b.serverId,user.id]
+   );
+   if(!rows.length)return asJson("Sem permissão para editar servidor.",403);
   }
   return json({ok:true});
  }catch{return asJson("Não foi possível atualizar o servidor.",503);}
