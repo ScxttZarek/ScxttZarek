@@ -46,7 +46,18 @@ export async function POST(request:Request){
   const peer=thread.user_a===user.id?thread.user_b:thread.user_a;
   if(await blocked(user.id,peer))return asJson("Conversa indisponível.",403);
   const content=b.content.trim();if(!content||content.length>2000)return asJson("Mensagem precisa ter entre 1 e 2000 caracteres.");
-  const rows=await db("INSERT INTO v3_dm_messages(thread_id,user_id,content) VALUES($1,$2,$3) RETURNING id",[b.threadId,user.id,content]);
-  return json({ok:true,id:rows[0]});
+  // Recheck thread participation and both directions of blocking in the INSERT
+  // statement; a prior read-only check can become stale during a request.
+  const rows=await db<{id:string}>(
+   "INSERT INTO v3_dm_messages(thread_id,user_id,content) "+
+   "SELECT t.id,$2::uuid,$3::text FROM v3_dm_threads t "+
+   "WHERE t.id=$1::uuid AND (t.user_a=$2::uuid OR t.user_b=$2::uuid) "+
+   "AND NOT EXISTS(SELECT 1 FROM v3_blocks bl WHERE "+
+   "(bl.blocker_id=t.user_a AND bl.blocked_id=t.user_b) OR "+
+   "(bl.blocker_id=t.user_b AND bl.blocked_id=t.user_a)) RETURNING id::text",
+   [b.threadId,user.id,content]
+  );
+  if(!rows[0])return asJson("Conversa indisponível.",403);
+  return json({ok:true,id:rows[0].id});
  }catch{return asJson("Não foi possível enviar a mensagem privada.",503);}
 }

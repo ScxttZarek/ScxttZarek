@@ -130,3 +130,19 @@ test("server settings validate all requested changes before one owner-scoped UPD
  assert.ok(s.includes("m.server_id=s.id AND m.user_id="));
  assert.ok(s.includes("if(!rows.length)return asJson"));
 });
+
+test("channel history and reactions recheck current channel visibility while reading",()=>{
+ const s=code("v3/messages-route.ts");
+ assert.ok(s.includes("v3_can_read_channel(x.channel_id,$3::uuid)"));
+ assert.ok(s.includes("[id,before,user.id]"));
+ assert.ok(s.includes("v3_can_read_channel(m.channel_id,$4::uuid)"));
+ assert.ok(s.includes("[id,first,last,user.id]"));
+});
+test("direct-message write confirms thread membership and absence of bilateral blocks in SQL",()=>{
+ const s=code("v3/dm-route.ts");
+ assert.ok(s.includes("INSERT INTO v3_dm_messages(thread_id,user_id,content)"));
+ assert.ok(s.includes("t.user_a=$2::uuid OR t.user_b=$2::uuid"));
+ assert.ok(s.includes("bl.blocker_id=t.user_a AND bl.blocked_id=t.user_b"));
+ assert.ok(s.includes("bl.blocker_id=t.user_b AND bl.blocked_id=t.user_a"));
+ assert.ok(s.includes("if(!rows[0])return asJson"));
+});
