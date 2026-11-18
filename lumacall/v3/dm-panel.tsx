@@ -68,8 +68,12 @@ export function DMPanel({userId,initialPeerId,onClose}:{userId:string;initialPee
    }catch(e){if(selectedRef.current===id&&requestRef.current===n)setError(updateError(e));}
   };
   void update();
-  const interval=window.setInterval(()=>void update(),3500);
-  return()=>{clearInterval(interval);requestRef.current++;};
+  // Background tabs should not continuously poll Neon. The foreground
+  // transition explicitly refreshes the selected conversation.
+  const refreshVisible=()=>{if(document.visibilityState==="visible")void update();};
+  const interval=window.setInterval(refreshVisible,3500);
+  document.addEventListener("visibilitychange",refreshVisible);
+  return()=>{clearInterval(interval);document.removeEventListener("visibilitychange",refreshVisible);requestRef.current++;};
  },[selected]);
  useEffect(()=>{
   if(followed.current&&scroll.current)scroll.current.scrollTop=scroll.current.scrollHeight;

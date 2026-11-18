@@ -134,8 +134,12 @@ export function NovaApp(){
     historyInitializedRef.current=false;setOlderCursor(null);setOlderLoading(false);restoreScrollRef.current=null;
     if(!selected||!textChannelId)return;
     void loadContent(selected,textChannelId);
-    const timer=window.setInterval(()=>void loadContent(selected,textChannelId),4500);
-    return()=>{window.clearInterval(timer);contentRequestRef.current++;};
+    // Do not poll the database while the application tab is hidden. Catch up
+    // immediately on return, including members and missed message changes.
+    const refreshVisible=()=>{if(document.visibilityState==="visible")void loadContent(selected,textChannelId);};
+    const timer=window.setInterval(refreshVisible,4500);
+    document.addEventListener("visibilitychange",refreshVisible);
+    return()=>{window.clearInterval(timer);document.removeEventListener("visibilitychange",refreshVisible);contentRequestRef.current++;};
   },[selected,textChannelId]);
   useEffect(()=>{
     if(view!=="text"||!followMessagesRef.current)return;

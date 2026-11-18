@@ -165,3 +165,12 @@ test("DM send results cannot merge into a different selected conversation",()=>{
  assert.ok(s.includes("if(selectedRef.current!==threadId)return"));
  assert.ok(s.includes("if(selectedRef.current===threadId)setMessages(previous=>mergeDM"));
 });
+
+test("channel and private-message polling pauses in hidden browser tabs and catches up on visibility",()=>{
+ const app=code("v2/nova-app.tsx"),dm=code("v3/dm-panel.tsx");
+ for(const s of [app,dm]){
+  assert.ok(s.includes('document.visibilityState==="visible"'));
+  assert.ok(s.includes('document.addEventListener("visibilitychange",refreshVisible)'));
+  assert.ok(s.includes('document.removeEventListener("visibilitychange",refreshVisible)'));
+ }
+});
