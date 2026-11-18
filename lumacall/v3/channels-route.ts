@@ -27,7 +27,7 @@ export async function POST(request:Request){
    const category=await db("SELECT 1 FROM v3_categories WHERE id=$1 AND server_id=$2",[body.categoryId,body.serverId]);
    if(!category.length)return asJson("Categoria não pertence a este servidor.",400);
   }
-  const position=(await db<{next:number}>("SELECT coalesce(max(position)+1,0)::int AS next FROM v3_channels WHERE server_id=$1 AND kind=$2",[body.serverId,kind]))[0]?.next||0;
+  const position=(await db<{next:number}>("SELECT coalesce(max(position)+1,0)::int AS next FROM v3_channels WHERE server_id=$1 AND kind=$2 AND archived_at IS NULL",[body.serverId,kind]))[0]?.next||0;
   const result=await db("INSERT INTO v3_channels(server_id,name,kind,position,is_private,category_id) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,name,kind,position,is_private,category_id",[body.serverId,name,kind,position,body.isPrivate===true,body.categoryId===undefined?null:body.categoryId]);
   return json({channel:result[0]});
  }catch(e){if(String(e).includes("23505")||String(e).toLowerCase().includes("duplicate"))return asJson("Já existe um canal com esse nome.",409);return asJson("Não foi possível criar o canal.",503);}
@@ -38,7 +38,7 @@ export async function PATCH(request:Request){
   const user=await getUser();if(!user)return asJson("Entre na conta.",401);
   const b=await request.json() as Record<string,unknown>;
   if(!isUuid(b.channelId))return asJson("Canal inválido.");
-  const existing=await db<{server_id:string;kind:string;name:string;category_id:string|null}>("SELECT server_id,kind,name,category_id FROM v3_channels WHERE id=$1 AND archived_at IS NULL",[b.channelId]);
+  const existing=await db<{server_id:string;kind:string;name:string;category_id:string|null;is_private:boolean}>("SELECT server_id,kind,name,category_id,is_private FROM v3_channels WHERE id=$1 AND archived_at IS NULL",[b.channelId]);
   const c=existing[0];if(!c)return asJson("Canal não encontrado.",404);
   if(!(await permission(c.server_id,user.id,"channels")))return asJson("Sem permissão.",403);
   if(b.action==="grant"){
@@ -53,6 +53,14 @@ export async function PATCH(request:Request){
    if(!isUuid(b.categoryId))return asJson("Categoria inválida.");
    const category=await db("SELECT 1 FROM v3_categories WHERE id=$1 AND server_id=$2",[b.categoryId,c.server_id]);
    if(!category.length)return asJson("Categoria não pertence a este servidor.",400);
+  }
+  // Making a private channel public would expose its full history to every
+  // server member. Forbid it when historical text/call content exists.
+  if(c.is_private&&b.isPrivate===false){
+   const history=c.kind==="text"
+    ?await db("SELECT 1 FROM v2_messages WHERE channel_id=$1 LIMIT 1",[b.channelId])
+    :await db("SELECT 1 FROM v3_call_messages WHERE channel_id=$1 LIMIT 1",[b.channelId]);
+   if(history.length)return asJson("Este canal privado possui histórico. Crie um novo canal público em vez de expor mensagens antigas.",409);
   }
   const nextCategory=b.categoryId===undefined?c.category_id:b.categoryId;
   const name=b.name===undefined?c.name:textValue(b.name,32);

@@ -55,3 +55,19 @@ test("new channel messages and voice tokens use channel-granular authorization",
  assert.match(v,/v3_can_read_channel/);
  assert.match(v,/ttl:"10m"/);
 });
+
+test("private channel history cannot be reclassified as public",()=>{
+ const s=code("v3/channels-route.ts");
+ assert.match(s,/c\.is_private&&b\.isPrivate===false/);
+ assert.match(s,/SELECT 1 FROM v2_messages WHERE channel_id=\$1/);
+ assert.match(s,/SELECT 1 FROM v3_call_messages WHERE channel_id=\$1/);
+ assert.match(s,/hist[oó]rico/);
+});
+test("invisible peer presence is never exposed in direct-message thread lists",()=>{
+ const s=code("v3/dm-route.ts");
+ assert.match(s,/CASE WHEN u\.presence='invisible' THEN 'offline'/);
+});
+test("switching voice channels discards stale LiveKit tokens",()=>{
+ const s=code("v2/nova-app.tsx");
+ assert.match(s,/if\(voice&&voice\.channelId!==c\.id\)setVoice\(null\)/);
+});

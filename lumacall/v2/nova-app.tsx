@@ -204,6 +204,8 @@ export function NovaApp(){
       activeChannelRef.current=c.id;
       setTextChannelId(c.id);setView("text");setEditingMessage(null);
     }else{
+      // Reset a stale LiveKit session when the user selects a different room.
+      if(voice&&voice.channelId!==c.id)setVoice(null);
       setVoiceChannelId(c.id);setView("voice");setCallChatOpen(false);
     }
     setSidebarOpen(false);
@@ -301,7 +303,7 @@ export function NovaApp(){
             </div>
             <form className="v2-composer" onSubmit={send}><textarea aria-label={"Mensagem no canal "+(selectedTextChannel?.name||"geral")} maxLength={2000} placeholder={"Conversar em #"+(selectedTextChannel?.name||"geral")} rows={2} value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();e.currentTarget.form?.requestSubmit()}}}/><button type="submit" title="Enviar" aria-label="Enviar" disabled={!draft.trim()||busy||!textChannelId}><Send size={19}/></button></form>
           </section>
-          {voice&&voice.serverId===selected&&voice.channelId===voiceChannelId&&<VoiceRoom token={voice.token} url={voice.serverUrl} members={members} onLeave={()=>{setVoice(null);setCallChatOpen(false)}} visible={view==="voice"}/>}
+          {voice&&voice.serverId===selected&&voice.channelId===voiceChannelId&&<VoiceRoom token={voice.token} url={voice.serverUrl} members={members} onLeave={()=>{setVoice(current=>current?.token===voice.token?null:current);setCallChatOpen(false)}} visible={view==="voice"}/>}
           {view==="voice"&&voice&&voice.serverId===selected&&voice.channelId===voiceChannelId&&callChatOpen&&<CallChatPanel channelId={voice.channelId} onClose={()=>setCallChatOpen(false)}/>}
 
           {view==="voice"&&(!voice||voice.channelId!==voiceChannelId)&&<div className="v2-join-voice">

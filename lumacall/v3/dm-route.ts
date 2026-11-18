@@ -17,7 +17,7 @@ export async function GET(request:Request){
    const messages=await db("SELECT m.id::text AS id,m.content,m.created_at,m.edited_at,m.user_id,u.name,u.avatar_data_url FROM (SELECT * FROM v3_dm_messages WHERE thread_id=$1 ORDER BY id DESC LIMIT 100) m JOIN v2_users u ON u.id=m.user_id ORDER BY m.id ASC",[threadId]);
    return json({messages});
   }
-  const threads=await db("SELECT t.id,t.created_at,u.id AS peer_id,u.name,u.avatar_data_url,u.presence, (SELECT content FROM v3_dm_messages x WHERE x.thread_id=t.id ORDER BY id DESC LIMIT 1) AS last_message FROM v3_dm_threads t JOIN v2_users u ON u.id=CASE WHEN t.user_a=$1 THEN t.user_b ELSE t.user_a END WHERE t.user_a=$1 OR t.user_b=$1 ORDER BY coalesce((SELECT max(created_at) FROM v3_dm_messages WHERE thread_id=t.id),t.created_at) DESC LIMIT 80",[user.id]);
+  const threads=await db("SELECT t.id,t.created_at,u.id AS peer_id,u.name,u.avatar_data_url,CASE WHEN u.presence='invisible' THEN 'offline' ELSE u.presence END AS presence, (SELECT content FROM v3_dm_messages x WHERE x.thread_id=t.id ORDER BY id DESC LIMIT 1) AS last_message FROM v3_dm_threads t JOIN v2_users u ON u.id=CASE WHEN t.user_a=$1 THEN t.user_b ELSE t.user_a END WHERE t.user_a=$1 OR t.user_b=$1 ORDER BY coalesce((SELECT max(created_at) FROM v3_dm_messages WHERE thread_id=t.id),t.created_at) DESC LIMIT 80",[user.id]);
   return json({threads});
  }catch{return asJson("Não foi possível carregar as mensagens privadas.",503);}
 }
