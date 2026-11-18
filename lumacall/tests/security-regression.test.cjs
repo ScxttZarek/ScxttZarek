@@ -125,7 +125,7 @@ test("call-chat reads and writes recheck channel authorization in their SQL",()=
 test("server settings validate all requested changes before one owner-scoped UPDATE",()=>{
  const s=code("v3/server-settings-route.ts").split("export async function POST")[0];
  assert.ok(s.indexOf("if(b.icon!==undefined)")<s.indexOf("const rows=await db"));
- assert.equal((s.match(/await db\\</g)||[]).length,1);
+ assert.equal(s.split("await db<").length-1,1);
  assert.ok(s.includes("updates.join"));
  assert.ok(s.includes("m.server_id=s.id AND m.user_id="));
  assert.ok(s.includes("if(!rows.length)return asJson"));

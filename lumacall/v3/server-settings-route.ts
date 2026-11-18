@@ -20,7 +20,7 @@ export async function PATCH(request:Request){
    if(b.icon===null)icon=null;
    else {
     const value=b.icon;
-    if(typeof value!=="string"||value.length>170000||!/^data:image\\/webp;base64,[A-Za-z0-9+/]+=*$/.test(value))return asJson("Envie um ícone WEBP válido.");
+    if(typeof value!=="string"||value.length>170000||!value.startsWith("data:image/webp;base64,")||!/^[A-Za-z0-9+/]+=*$/.test(value.slice(23)))return asJson("Envie um ícone WEBP válido.");
     const bytes=Buffer.from(value.split(",")[1],"base64");
     if(bytes.length>120*1024||bytes.toString("ascii",0,4)!=="RIFF"||bytes.toString("ascii",8,12)!=="WEBP")return asJson("Ícone inválido ou muito grande.");
     icon=value;
