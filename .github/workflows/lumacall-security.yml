@@ -1,0 +1,25 @@
+name: LumaCall security regression checks
+on:
+  push:
+    branches:
+      - main
+      - lumacall-v3-security-hardening-20261118
+    paths:
+      - 'lumacall/**'
+      - '.github/workflows/lumacall-security.yml'
+  pull_request:
+    paths:
+      - 'lumacall/**'
+permissions:
+  contents: read
+jobs:
+  security-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Test source-level security regression invariants
+        working-directory: lumacall
+        run: node --test tests/*.test.cjs
