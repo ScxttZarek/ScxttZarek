@@ -134,7 +134,7 @@ function fakeVoice({permissions=[{server_id:channelId},{server_id:channelId}],cr
    "@/lib/livekit/server":{getRoomService:()=>service,getLiveKitWsUrl:()=>"wss://example.invalid"}
   },env:{LIVEKIT_API_KEY:"test-key",LIVEKIT_API_SECRET:"test-secret"}
  });
- return {...harness,service,calls};
+ return {...harness,service,calls,sqlCalls:harness.calls};
 }
 test("voice route denies access without creating a LiveKit room",async()=>{
  const h=fakeVoice({permissions:[[]]});
@@ -145,7 +145,7 @@ test("voice route refuses a token when membership is revoked during room creatio
  const h=fakeVoice({permissions:[[{server_id:channelId}],[]]});
  const r=await result(await h.handlers.POST(request("/api/v3/voice","POST",{channelId})));
  assert.equal(r.status,403);assert.equal(h.calls.room.length,1);assert.equal(h.calls.tokens.length,0);
- assert.equal(h.calls.length,2);
+ assert.equal(h.sqlCalls.length,2);
 });
 test("voice route grants only the selected room with six-person limit and 10-minute TTL",async()=>{
  const h=fakeVoice();
