@@ -47,9 +47,13 @@ Use **contas descartáveis** em um ambiente isolado e registre resultado, data, 
 | SEC-14 | Excluir cargo concedendo acesso a um canal de voz | Sessões que perderam acesso são revogadas; demais preservadas | MANUAL PENDENTE |
 | SEC-15 | Tentar reconectar com token LiveKit emitido antes do arquivamento ou da revogação | Não permitir continuidade do acesso revogado; testar dentro da validade do token | MANUAL PENDENTE |
 | SEC-16 | Simular falha de remoção de participante no LiveKit em ambiente isolado | Administrador vê aviso explícito de desconexão não confirmada | MANUAL PENDENTE |
+| SEC-17 | Revogar grant ou cargo após o participante já sair da chamada, mas antes do token expirar | Em sala ainda ativa, o token antigo deve ser revogado e a reconexão negada; outro cargo permitido deve preservar o acesso | MANUAL PENDENTE |
+| SEC-18 | Renovação do convite durante mudança de dono do servidor | Atualização não pode ocorrer depois de perder o papel de dono | MANUAL PENDENTE |
+| SEC-19 | Requisição mutante com Origin de mesmo host mas protocolo/porta diferente | Recusada como origem não autorizada | MANUAL PENDENTE |
 | MSG-01 | Enviar mensagem durante mudança de canal | Mensagem só é publicada no canal autorizado | MANUAL PENDENTE |
 | MSG-02 | Carregar página anterior do histórico com mais de 100 registros | Sem duplicatas; scroll preservado; mensagens recentes mantidas | MANUAL PENDENTE |
 | MSG-03 | Reagir enquanto autorização do canal é removida | Reação negada após revogação | MANUAL PENDENTE |
+| DM-00 | Abrir conversa enquanto contas deixam de compartilhar um servidor ou uma delas bloqueia a outra | O INSERT verifica associação e bloqueios, devolvendo 403 quando indisponível | MANUAL PENDENTE |
 | DM-01 | Bloqueio entre duas contas durante envio de mensagem | Envio posterior recusado nos dois sentidos | MANUAL PENDENTE |
 | DM-02 | Trocar de conversa antes do retorno de um envio ou GET | Nenhuma mensagem aparece no DM errado | MANUAL PENDENTE |
 | DM-03 | Carregar mais de 100 mensagens privadas | Paginação estável sem perdas ou duplicações | MANUAL PENDENTE |
@@ -86,6 +90,15 @@ Use **contas descartáveis** em um ambiente isolado e registre resultado, data, 
 - O conjunto inclui testes executáveis dos handlers com o RoomServiceClient simulado para verificar encerramento de salas, revogação de grants, remoção/exclusão de cargos e falhas parciais.
 - O Neon confirmou os planos SQL de consulta de permissão, exclusão de grant e UPDATE com proteção atômica via EXPLAIN em branch de teste, sem ANALYZE nem gravações.
 - **Essas validações não substituem a verificação de chamadas reais e concorrência entre LiveKit e Neon.** Todos os testes da matriz acima permanecem manuais pendentes.
+
+## Continuação de validação — 18/11/2026, 13h–14h (Brasília)
+
+- O último conjunto de código verificado incluiu 84 testes automatizados aprovados e 0 falhas na Vercel.
+- Novos testes de contrato cobrem abertura de DM com autorização verificada no INSERT, comparação integral de origin, revogação de tokens de membros offline e renovação de convites condicionada à propriedade atual.
+- No Neon isolado, foram aceitos via EXPLAIN (ANALYZE desligado) os planos de consulta a atribuições de cargos, membros do servidor, abertura condicional de DM e rotação de convite com proprietário confirmado. Nenhum SQL desta verificação alterou dados.
+- A chamada HTTP à Preview retornou 200 na página inicial e usuário nulo em `/api/v2/auth` sem sessão. Duas rotas privadas não puderam ser inspecionadas devido à autenticação de proteção da própria Preview; não interpretar isso como teste de autorização funcional da aplicação.
+- O LiveKit Cloud documenta a revogação por `revokeTokenTs` de tokens de participantes que já deixaram a sala. A implementação agora inclui membros offline na reconciliação enquanto houver uma sala ativa, mas **ainda não foi validada com tokens reais**.
+- Não considerar os testes com handlers simulados como end-to-end, nem concluir que a revogação está garantida após a exclusão/encerramento de uma sala inteira.
 
 ## Riscos não resolvidos
 
