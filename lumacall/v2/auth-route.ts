@@ -16,6 +16,7 @@ export async function POST(request:Request) {
     const secret=body.secret;
     if(!normalized || typeof secret!=="string"||secret.length<4||secret.length>200)return asJson("Use um nome de 3 a 24 caracteres e um código secreto de pelo menos 4 caracteres.");
     if(body.action==="register"){
+      if(secret.length<8)return asJson("Para novas contas, escolha um código secreto com pelo menos 8 caracteres.");
       // A identidade é definida pelo primeiro cadastro: nenhum nome recebe privilégios por padrão.
       const password=await secretHash(secret);
       try{
