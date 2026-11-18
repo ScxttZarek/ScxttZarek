@@ -10,7 +10,7 @@ export async function GET(request:Request){
   const params=new URL(request.url).searchParams;
   const id=params.get("channelId"),before=params.get("before");
   if(!isUuid(id)||!(await readable(id,user.id)))return asJson("Sem acesso a este canal.",403);
-  if(before!==null&&(!/^\d{1,19}$/.test(before)||BigInt(before)>9223372036854775807n))return asJson("Cursor de histórico inválido.");
+  if(before!==null&&(!/^\d{1,19}$/.test(before)||BigInt(before)>BigInt("9223372036854775807")))return asJson("Cursor de histórico inválido.");
   // Keyset paging preserves ordering under concurrent writes.
   const raw=await db<{id:string;content:string;created_at:string;edited_at:string|null;deleted_at:string|null;user_id:string;name:string;badge:string|null;avatar_data_url:string|null}>(
    "SELECT m.id::text AS id,m.content,m.created_at,m.edited_at,m.deleted_at,u.id AS user_id,u.name,u.badge,u.avatar_data_url "+

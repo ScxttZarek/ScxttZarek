@@ -75,7 +75,7 @@ test("switching voice channels discards stale LiveKit tokens",()=>{
 test("channel message pagination uses a validated keyset cursor and scoped reactions",()=>{
  const s=code("v3/messages-route.ts");
  assert.match(s,/params\.get\("before"\)/);
- assert.match(s,/BigInt\(before\)>9223372036854775807n/);
+ assert.match(s,/BigInt\(before\)>BigInt\("9223372036854775807"\)/);
  assert.match(s,/x\.id<\$2::bigint/);
  assert.match(s,/LIMIT 101/);
  assert.match(s,/nextCursor:hasMore\?first:null/);
