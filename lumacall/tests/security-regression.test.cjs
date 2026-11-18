@@ -58,18 +58,20 @@ test("new channel messages and voice tokens use channel-granular authorization",
 
 test("a private channel can never be declassified by PATCH, even if initially empty",()=>{
  const s=code("v3/channels-route.ts");
- assert.match(s,/c\\.is_private&&b\\.isPrivate===false/);
- assert.match(s,/Crie um novo canal público/);
- assert.doesNotMatch(s,/if\\(history\\.length\\)/);
+ assert.ok(s.includes("if(c.is_private&&b.isPrivate===false)"));
+ assert.ok(s.includes("Crie um novo canal público"));
+ assert.ok(!s.includes("if(history.length)"));
 });
 test("channel message mutations recheck authorization in their writing SQL statement",()=>{
  const s=code("v3/messages-route.ts");
- assert.match(s,/INSERT INTO v2_messages\\(server_id,channel_id,user_id,content\\)/);
- assert.match(s,/SELECT c\\.server_id,c\\.id,\\$2::uuid,\\$3::text FROM v3_channels/);
- assert.match(s,/AND v3_can_read_channel\\(c\\.id,\\$2::uuid\\) RETURNING id::text/);
- assert.match(s,/v3_can_read_channel\\(c\\.id,\\$3::uuid\\)/);
- assert.match(s,/v3_user_permission\\(server_id,\\$2::uuid,'messages'\\)/);
- assert.match(s,/if\\(!changed\\.length\\)return asJson/);
+ for(const fragment of [
+  "INSERT INTO v2_messages(server_id,channel_id,user_id,content)",
+  "SELECT c.server_id,c.id,$2::uuid,$3::text FROM v3_channels",
+  "AND v3_can_read_channel(c.id,$2::uuid) RETURNING id::text",
+  "v3_can_read_channel(c.id,$3::uuid)",
+  "v3_user_permission(server_id,$2::uuid,'messages')",
+  "if(!changed.length)return asJson"
+ ])assert.ok(s.includes(fragment),"Missing expected SQL authorization guard: "+fragment);
 });
 test("invisible peer presence is never exposed in direct-message thread lists",()=>{
  const s=code("v3/dm-route.ts");
