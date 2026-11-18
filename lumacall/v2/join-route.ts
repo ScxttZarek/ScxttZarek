@@ -7,15 +7,18 @@ export async function POST(request:Request){
   try{
     const user=await getUser();if(!user)return asJson("Entre na conta.",401);
     const {code}=await request.json() as {code?:unknown};
-    if(typeof code!=="string"||!/^([a-f0-9]{12})$/i.test(code.trim()))return asJson("Código de convite inválido.");
-    const banned=await db("SELECT 1 FROM v3_bans b JOIN v2_servers s ON s.id=b.server_id WHERE s.invite_code=$1 AND b.user_id=$2 LIMIT 1",[code.toUpperCase(),user.id]);
+    if(typeof code!=="string")return asJson("Código de convite inválido.");
+    const normalizedCode=code.trim().toUpperCase();
+    if(!/^[A-F0-9]{12}$/.test(normalizedCode))return asJson("Código de convite inválido.");
+    const banned=await db("SELECT 1 FROM v3_bans b JOIN v2_servers s ON s.id=b.server_id WHERE s.invite_code=$1 AND b.user_id=$2 LIMIT 1",[normalizedCode,user.id]);
     if(banned.length)return asJson("Você está banido deste servidor.",403);
-    const row=await db<{result:string}>("SELECT v2_join_server($1,$2::uuid) AS result",[code,user.id]);
+    const row=await db<{result:string}>("SELECT v2_join_server($1,$2::uuid) AS result",[normalizedCode,user.id]);
     const result=row[0]?.result||"NOT_FOUND";
+    if(result==="BANNED")return asJson("Você está banido deste servidor.",403);
     if(result==="FULL")return asJson("Servidor lotado: máximo de 6 pessoas.",409);
     if(result==="NOT_FOUND")return asJson("Convite não encontrado.",404);
     if(result==="ALREADY_MEMBER"){
-      const server=await db<{id:string}>("SELECT s.id FROM v2_servers s JOIN v2_memberships m ON m.server_id=s.id WHERE s.invite_code=$1 AND m.user_id=$2",[code.toUpperCase(),user.id]);
+      const server=await db<{id:string}>("SELECT s.id FROM v2_servers s JOIN v2_memberships m ON m.server_id=s.id WHERE s.invite_code=$1 AND m.user_id=$2",[normalizedCode,user.id]);
       return Response.json({id:server[0]?.id,alreadyJoined:true});
     }
     return Response.json({id:result});
