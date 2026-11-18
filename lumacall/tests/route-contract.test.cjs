@@ -275,3 +275,59 @@ test("concurrent private-channel change is rejected by the atomic SQL update",as
  assert.match(h.calls[1].sql,/NOT is_private OR coalesce\(\$2::boolean,true\)/);
  assert.match(h.calls[1].sql,/archived_at IS NULL/);
 });
+
+function grantHarness({active=true,blockedIdentity="00000000-0000-4000-8000-000000000004",allowedIdentity="00000000-0000-4000-8000-000000000005",failRemoval=false,failListing=false}={}){
+ const events={rooms:[],listed:[],removed:[],writes:0};
+ const participants=[{identity:blockedIdentity},{identity:allowedIdentity}];
+ const client={
+  listRooms:async names=>{events.rooms.push(names);if(failListing)throw Error("LiveKit unavailable");return active?[{name:"v3-"+channelId}]:[];},
+  listParticipants:async name=>{events.listed.push(name);return participants;},
+  removeParticipant:async (name,identity,opts)=>{events.removed.push({name,identity,opts});if(failRemoval)throw Error("revocation failure");}
+ };
+ const h=makeRoute("v3/channels-route.ts",{
+  respond:async (sql,args)=>{
+   if(sql.startsWith("SELECT server_id,kind,name,category_id,is_private FROM v3_channels"))return [{server_id:channelId,kind:"voice",name:"private-call",category_id:null,is_private:true}];
+   if(sql.startsWith("SELECT 1 FROM v3_roles"))return [{ok:true}];
+   if(sql.startsWith("DELETE FROM v3_channel_grants")){events.writes++;return [];}
+   if(sql.startsWith("INSERT INTO v3_channel_grants")){events.writes++;return [];}
+   if(sql.startsWith("SELECT v3_can_read_channel"))return [{allowed:args[1]===allowedIdentity}];
+   throw Error("Unexpected grant SQL: "+sql);
+  },modules:{"@/lib/livekit/server":{getRoomService:()=>client}}
+ });
+ return {...h,events,blockedIdentity,allowedIdentity};
+}
+test("revoking voice role grant disconnects only participants who have lost channel permission",async()=>{
+ const h=grantHarness();
+ const r=await result(await h.handlers.PATCH(request("/api/v3/channels","PATCH",{action:"grant",channelId,roleId:threadId,enabled:false})));
+ assert.equal(r.status,200);assert.equal(r.body.ok,true);assert.equal(r.body.disconnected,true);
+ assert.equal(r.body.removedParticipants,1);assert.equal(r.body.failedRemovals,0);
+ assert.equal(h.events.writes,1);assert.equal(h.events.removed.length,1);
+ assert.equal(h.events.removed[0].identity,h.blockedIdentity);
+ assert.equal(typeof h.events.removed[0].opts.revokeTokenTs,"bigint");
+});
+test("revoking voice grant with no active call avoids invoking participant list",async()=>{
+ const h=grantHarness({active:false});
+ const r=await result(await h.handlers.PATCH(request("/api/v3/channels","PATCH",{action:"grant",channelId,roleId:threadId,enabled:false})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,true);
+ assert.equal(h.events.listed.length,0);assert.equal(h.events.removed.length,0);
+});
+test("revoking voice grant returns warning if a participant removal fails",async()=>{
+ const h=grantHarness({failRemoval:true});
+ const r=await result(await h.handlers.PATCH(request("/api/v3/channels","PATCH",{action:"grant",channelId,roleId:threadId,enabled:false})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,false);
+ assert.equal(r.body.failedRemovals,1);assert.match(r.body.warning,/não puderam ser desconectados/);
+ assert.equal(h.events.writes,1);
+});
+test("grant revocation records incomplete media cleanup if LiveKit discovery fails",async()=>{
+ const h=grantHarness({failListing:true});
+ const r=await result(await h.handlers.PATCH(request("/api/v3/channels","PATCH",{action:"grant",channelId,roleId:threadId,enabled:false})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,false);
+ assert.match(r.body.warning,/não pôde ser confirmada/);
+ assert.equal(h.events.writes,1);
+});
+test("adding a channel grant never disconnects existing participants",async()=>{
+ const h=grantHarness();
+ const r=await result(await h.handlers.PATCH(request("/api/v3/channels","PATCH",{action:"grant",channelId,roleId:threadId,enabled:true})));
+ assert.equal(r.status,200);assert.equal(r.body.ok,true);
+ assert.equal(h.events.rooms.length,0);assert.equal(h.events.removed.length,0);
+});

@@ -1,6 +1,36 @@
 import { db,getUser,asJson,isUuid,textValue,mutation,member,permission,json } from "@/lib/v3/community";
 import { getRoomService } from "@/lib/livekit/server";
 export const runtime="nodejs";
+// Revoking a private voice-channel grant must also affect an existing call.
+// We check the *current* effective permission, not merely role membership,
+// because a user may retain access through a different authorized role.
+async function removeUnauthorizedVoiceParticipants(channelId:string){
+ const roomName="v3-"+channelId,client=getRoomService();
+ const active=await client.listRooms([roomName]);
+ if(!active.some(room=>room.name===roomName))return {disconnected:true,removedParticipants:0,failedRemovals:0};
+ const participants=await client.listParticipants(roomName);
+ const decisions=await Promise.all(participants.map(async participant=>{
+  const identity=participant.identity;
+  if(!isUuid(identity))return {identity,allowed:false};
+  const access=await db<{allowed:boolean}>(
+   "SELECT v3_can_read_channel($1::uuid,$2::uuid) AS allowed",
+   [channelId,identity]
+  );
+  return {identity,allowed:access[0]?.allowed===true};
+ }));
+ const revoked=decisions.filter(p=>!p.allowed);
+ if(!revoked.length)return {disconnected:true,removedParticipants:0,failedRemovals:0};
+ const revokeTokenTs=BigInt(Math.floor(Date.now()/1000)+30);
+ const results=await Promise.allSettled(
+  revoked.map(p=>client.removeParticipant(roomName,p.identity,{revokeTokenTs}))
+ );
+ const failedRemovals=results.filter(r=>r.status==="rejected").length;
+ if(failedRemovals)console.error("LumaCall channel grant disconnection incomplete",{
+  channelId,failedRemovals,attempted:results.length
+ });
+ return {disconnected:failedRemovals===0,removedParticipants:results.length-failedRemovals,failedRemovals};
+}
+
 export async function GET(request:Request){
  try{
   const user=await getUser();if(!user)return asJson("Entre na conta.",401);
@@ -48,6 +78,18 @@ export async function PATCH(request:Request){
    if(!role.length)return asJson("Cargo não pertence a este servidor.",400);
    if(b.enabled)await db("INSERT INTO v3_channel_grants(channel_id,role_id) VALUES($1,$2) ON CONFLICT DO NOTHING",[b.channelId,b.roleId]);
    else await db("DELETE FROM v3_channel_grants WHERE channel_id=$1 AND role_id=$2",[b.channelId,b.roleId]);
+   if(c.kind==="voice"&&!b.enabled){
+    // The grant change already committed. A LiveKit failure must be visible
+    // to moderators, not silently misrepresented as an immediate revocation.
+    try{
+     const result=await removeUnauthorizedVoiceParticipants(b.channelId);
+     if(!result.disconnected)return json({ok:true,...result,warning:"Cargo atualizado, mas alguns participantes não puderam ser desconectados da chamada. Verifique a sala."});
+     return json({ok:true,...result});
+    }catch{
+     console.error("LumaCall channel grant call cleanup unverified",{channelId:b.channelId});
+     return json({ok:true,disconnected:false,warning:"Cargo atualizado, mas a desconexão dos participantes da chamada não pôde ser confirmada."});
+    }
+   }
    return json({ok:true});
   }
   if(b.categoryId!==undefined&&b.categoryId!==null){
