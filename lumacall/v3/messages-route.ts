@@ -7,13 +7,25 @@ async function readable(channelId:string,userId:string){
 export async function GET(request:Request){
  try{
   const user=await getUser();if(!user)return asJson("Entre na conta.",401);
-  const id=new URL(request.url).searchParams.get("channelId");
+  const params=new URL(request.url).searchParams;
+  const id=params.get("channelId"),before=params.get("before");
   if(!isUuid(id)||!(await readable(id,user.id)))return asJson("Sem acesso a este canal.",403);
-  const [messages,reactions]=await Promise.all([
-   db("SELECT m.id::text AS id,m.content,m.created_at,m.edited_at,m.deleted_at,u.id AS user_id,u.name,u.badge,u.avatar_data_url FROM (SELECT x.* FROM v2_messages x WHERE x.channel_id=$1 ORDER BY x.id DESC LIMIT 100) m JOIN v2_users u ON u.id=m.user_id ORDER BY m.id ASC",[id]),
-   db("SELECT r.message_id::text AS message_id,r.emoji,r.user_id FROM v3_reactions r JOIN v2_messages m ON m.id=r.message_id WHERE m.channel_id=$1 ORDER BY r.message_id DESC LIMIT 500",[id])
-  ]);
-  return json({messages,reactions});
+  if(before!==null&&(!/^\d{1,19}$/.test(before)||BigInt(before)>9223372036854775807n))return asJson("Cursor de histórico inválido.");
+  // Keyset paging preserves ordering under concurrent writes.
+  const raw=await db<{id:string;content:string;created_at:string;edited_at:string|null;deleted_at:string|null;user_id:string;name:string;badge:string|null;avatar_data_url:string|null}>(
+   "SELECT m.id::text AS id,m.content,m.created_at,m.edited_at,m.deleted_at,u.id AS user_id,u.name,u.badge,u.avatar_data_url "+
+   "FROM (SELECT x.* FROM v2_messages x WHERE x.channel_id=$1 AND ($2::bigint IS NULL OR x.id<$2::bigint) ORDER BY x.id DESC LIMIT 101) m "+
+   "JOIN v2_users u ON u.id=m.user_id ORDER BY m.id ASC",[id,before]
+  );
+  const hasMore=raw.length>100,messages=hasMore?raw.slice(1):raw;
+  const first=messages[0]?.id,last=messages[messages.length-1]?.id;
+  const reactions=first&&last?await db(
+   "SELECT r.message_id::text AS message_id,r.emoji,r.user_id FROM v3_reactions r "+
+   "JOIN v2_messages m ON m.id=r.message_id "+
+   "WHERE m.channel_id=$1 AND r.message_id BETWEEN $2::bigint AND $3::bigint "+
+   "ORDER BY r.message_id DESC LIMIT 5000",[id,first,last]
+  ):[];
+  return json({messages,reactions,nextCursor:hasMore?first:null});
  }catch{return asJson("Não foi possível carregar as mensagens.",503);}
 }
 export async function POST(request:Request){

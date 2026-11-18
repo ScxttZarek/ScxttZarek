@@ -153,3 +153,8 @@
 .v3-category-toggle small{font-size:10px;color:#8c8c8c}
 .v3-category-channels{min-width:0;padding-left:8px}
 @media(prefers-reduced-motion:reduce){.v3-category-toggle>svg{transition:none}}
+
+/* Progressive history loading without replacing the message timeline. */
+.v3-load-history{display:block;margin:13px auto 18px;padding:9px 15px;border:1px solid #424242;border-radius:8px;background:#212121;color:#ddd;font:inherit;font-size:11px;cursor:pointer}
+.v3-load-history:hover:not(:disabled){background:#333;color:#fff}
+.v3-load-history:disabled{opacity:.6;cursor:progress}

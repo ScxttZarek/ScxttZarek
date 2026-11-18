@@ -71,3 +71,20 @@ test("switching voice channels discards stale LiveKit tokens",()=>{
  const s=code("v2/nova-app.tsx");
  assert.match(s,/if\(voice&&voice\.channelId!==c\.id\)setVoice\(null\)/);
 });
+
+test("channel message pagination uses a validated keyset cursor and scoped reactions",()=>{
+ const s=code("v3/messages-route.ts");
+ assert.match(s,/params\.get\("before"\)/);
+ assert.match(s,/BigInt\(before\)>9223372036854775807n/);
+ assert.match(s,/x\.id<\$2::bigint/);
+ assert.match(s,/LIMIT 101/);
+ assert.match(s,/nextCursor:hasMore\?first:null/);
+ assert.match(s,/r\.message_id BETWEEN \$2::bigint AND \$3::bigint/);
+});
+test("chat UI can load earlier pages without losing its scroll position",()=>{
+ const s=code("v2/nova-app.tsx");
+ assert.match(s,/async function loadOlderMessages/);
+ assert.match(s,/mergeChatMessages\(previous,result\.messages\)/);
+ assert.match(s,/el\.scrollTop=saved\.top\+el\.scrollHeight-saved\.height/);
+ assert.match(s,/Carregar mensagens anteriores/);
+});

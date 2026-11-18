@@ -15,6 +15,12 @@ type User={id:string;name:string;name_key:string;avatar_data_url:string|null;bad
 type Server={id:string;name:string;icon_data_url:string|null;invite_code:string;member_count:number;role:string};
 type Member={id:string;name:string;badge:string|null;avatar_data_url:string|null;role:string;bio?:string;presence?:string};
 type Message={id:string;user_id:string;name:string;badge:string|null;avatar_data_url:string|null;content:string;created_at:string;edited_at?:string|null;deleted_at?:string|null};
+type ChatPage={messages:Message[];reactions:Reaction[];nextCursor:string|null};
+function mergeChatMessages(previous:Message[],incoming:Message[]):Message[]{
+ const ids=new Map(previous.map(m=>[m.id,m] as const));
+ for(const m of incoming)ids.set(m.id,m);
+ return [...ids.values()].sort((a,b)=>BigInt(a.id)<BigInt(b.id)?-1:BigInt(a.id)>BigInt(b.id)?1:0);
+}
 type Modal="create"|"join"|"profile"|null;
 type Voice={token:string;serverUrl:string;serverId:string;channelId:string};
 async function api<T>(url:string,method="GET",data?:unknown):Promise<T>{
@@ -29,6 +35,8 @@ export function NovaApp(){
   const [selected,setSelected]=useState<string|null>(null);
   const [members,setMembers]=useState<Member[]>([]);
   const [messages,setMessages]=useState<Message[]>([]);
+  const [olderCursor,setOlderCursor]=useState<string|null>(null);
+  const [olderLoading,setOlderLoading]=useState(false);
   const [loading,setLoading]=useState(true);
   const [setupError,setSetupError]=useState(false);
   const [error,setError]=useState("");
@@ -66,6 +74,8 @@ export function NovaApp(){
   const [profileNotice,setProfileNotice]=useState("");
   const messageScrollRef=useRef<HTMLDivElement>(null);
   const followMessagesRef=useRef(true);
+  const historyInitializedRef=useRef(false);
+  const restoreScrollRef=useRef<{height:number;top:number}|null>(null);
   const activeServerRef=useRef<string|null>(null);
   const activeChannelRef=useRef<string|null>(null);
   const contentRequestRef=useRef(0);
@@ -96,10 +106,16 @@ export function NovaApp(){
     try{
       const [membersData,chatData]=await Promise.all([
         api<{members:Member[]}>("/api/v2/members?serverId="+encodeURIComponent(serverId)),
-        apiV3<{messages:Message[];reactions:Reaction[]}>("/api/v3/messages?channelId="+encodeURIComponent(channelId))
+        apiV3<ChatPage>("/api/v3/messages?channelId="+encodeURIComponent(channelId))
       ]);
       if(activeServerRef.current!==serverId||activeChannelRef.current!==channelId||requestId!==contentRequestRef.current)return;
-      setMembers(membersData.members);setMessages(chatData.messages);setReactions(chatData.reactions);
+      setMembers(membersData.members);
+      setMessages(previous=>mergeChatMessages(previous,chatData.messages));
+      const freshIds=new Set(chatData.messages.map(m=>m.id));
+      setReactions(previous=>[...previous.filter(r=>!freshIds.has(r.message_id)),...chatData.reactions]);
+      if(!historyInitializedRef.current){
+       historyInitializedRef.current=true;setOlderCursor(chatData.nextCursor);
+      }
     }catch(e){
       if(activeServerRef.current===serverId&&activeChannelRef.current===channelId&&requestId===contentRequestRef.current)setError(updateError(e));
     }
@@ -108,12 +124,14 @@ export function NovaApp(){
     activeServerRef.current=selected;
     activeChannelRef.current=null;contentRequestRef.current++;followMessagesRef.current=true;
     setChannels([]);setCategories([]);setCollapsedCategories({});setTextChannelId(null);setVoiceChannelId(null);setMembers([]);setMessages([]);setReactions([]);
+    historyInitializedRef.current=false;setOlderCursor(null);setOlderLoading(false);restoreScrollRef.current=null;
     if(selected)void loadChannels(selected);
   },[selected]);
   useEffect(()=>{
     activeChannelRef.current=textChannelId;
     contentRequestRef.current++;followMessagesRef.current=true;
     setMessages([]);setReactions([]);
+    historyInitializedRef.current=false;setOlderCursor(null);setOlderLoading(false);restoreScrollRef.current=null;
     if(!selected||!textChannelId)return;
     void loadContent(selected,textChannelId);
     const timer=window.setInterval(()=>void loadContent(selected,textChannelId),4500);
@@ -124,6 +142,26 @@ export function NovaApp(){
     const scroll=messageScrollRef.current;
     if(scroll)scroll.scrollTop=scroll.scrollHeight;
   },[messages[messages.length-1]?.id,view,selected]);
+  async function loadOlderMessages(){
+    if(!selected||!textChannelId||!olderCursor||olderLoading)return;
+    const serverId=selected,channelId=textChannelId,cursor=olderCursor;
+    const el=messageScrollRef.current;
+    const preserve={height:el?.scrollHeight||0,top:el?.scrollTop||0};
+    setOlderLoading(true);setError("");followMessagesRef.current=false;
+    try{
+      const result=await apiV3<ChatPage>("/api/v3/messages?channelId="+encodeURIComponent(channelId)+"&before="+encodeURIComponent(cursor));
+      if(activeServerRef.current!==serverId||activeChannelRef.current!==channelId)return;
+      restoreScrollRef.current=preserve;
+      setMessages(previous=>mergeChatMessages(previous,result.messages));
+      setReactions(previous=>[...previous,...result.reactions.filter(reaction=>!previous.some(p=>p.message_id===reaction.message_id&&p.user_id===reaction.user_id&&p.emoji===reaction.emoji))]);
+      setOlderCursor(result.nextCursor);
+    }catch(ex){if(activeChannelRef.current===channelId)setError(updateError(ex));}
+    finally{if(activeChannelRef.current===channelId)setOlderLoading(false);}
+  }
+  useEffect(()=>{
+    const saved=restoreScrollRef.current,el=messageScrollRef.current;
+    if(saved&&el){el.scrollTop=saved.top+el.scrollHeight-saved.height;restoreScrollRef.current=null;}
+  },[messages]);
   function observeChatScroll(){
     const node=messageScrollRef.current;
     if(node)followMessagesRef.current=node.scrollHeight-node.scrollTop-node.clientHeight<=100;
@@ -268,6 +306,7 @@ export function NovaApp(){
         <div className="v2-central">
           <section className={view==="text"?"v2-chat":"v2-chat v2-is-hidden"}>
             <div className="v2-message-scroll" ref={messageScrollRef} onScroll={observeChatScroll}>
+              {olderCursor&&<button type="button" className="v3-load-history" disabled={olderLoading} onClick={()=>void loadOlderMessages()}>{olderLoading?"Carregando histórico…":"Carregar mensagens anteriores"}</button>}
               {messages.length===0&&<div className="v2-chat-welcome"><div><Hash size={35}/></div><h2>Bem-vindo ao #{selectedTextChannel?.name||"geral"}</h2><p>Este é o início das conversas em {selectedServer.name}.</p></div>}
               {messages.map(m=><article key={m.id} className="v2-message">
                 <Avatar name={m.name} src={m.avatar_data_url} badge={m.badge} size={42}/>
