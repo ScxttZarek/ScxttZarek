@@ -15,7 +15,7 @@ export async function POST(request:Request){
   const roomName="v3-"+b.channelId;
   try{await getRoomService().createRoom({name:roomName,maxParticipants:6,emptyTimeout:120});}
   catch(e){const existing=await getRoomService().listRooms([roomName]);if(!existing.length)throw e;}
-  const token=new AccessToken(key,secret,{identity:user.id,name:user.name,ttl:"2h",metadata:JSON.stringify({badge:user.badge})});
+  const token=new AccessToken(key,secret,{identity:user.id,name:user.name,ttl:"10m",metadata:JSON.stringify({badge:user.badge})});
   token.addGrant({roomJoin:true,room:roomName,canPublish:true,canSubscribe:true,canPublishData:true});
   return json({token:await token.toJwt(),serverUrl:getLiveKitWsUrl(),serverId:rows[0].server_id});
  }catch{return asJson("Não foi possível entrar neste canal de voz.",503);}

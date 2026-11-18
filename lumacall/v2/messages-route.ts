@@ -20,8 +20,8 @@ export async function POST(request:Request){
     if(typeof b.serverId!=="string"||!/^[a-f\d-]{36}$/i.test(b.serverId)||typeof b.content!=="string")return asJson("Mensagem inválida.");
     const content=b.content.trim();
     if(content.length<1||content.length>2000)return asJson("Mensagem precisa ter entre 1 e 2000 caracteres.");
-    const inserted=await db<{id:string}>("INSERT INTO v2_messages(server_id,channel_id,user_id,content) SELECT $1::uuid,(SELECT id FROM v3_channels WHERE server_id=$1::uuid AND name='geral' AND kind='text' AND archived_at IS NULL AND v3_can_read_channel(id,$2::uuid) LIMIT 1),$2::uuid,$3 WHERE EXISTS(SELECT 1 FROM v2_memberships WHERE server_id=$1::uuid AND user_id=$2::uuid)
-      AND EXISTS(SELECT 1 FROM v3_channels WHERE server_id=$1::uuid AND name='geral' AND kind='text' AND archived_at IS NULL AND v3_can_read_channel(id,$2::uuid)) RETURNING id::text",[b.serverId,user.id,content]);
+    const inserted=await db<{id:string}>(`INSERT INTO v2_messages(server_id,channel_id,user_id,content) SELECT $1::uuid,(SELECT id FROM v3_channels WHERE server_id=$1::uuid AND name='geral' AND kind='text' AND archived_at IS NULL AND v3_can_read_channel(id,$2::uuid) LIMIT 1),$2::uuid,$3 WHERE EXISTS(SELECT 1 FROM v2_memberships WHERE server_id=$1::uuid AND user_id=$2::uuid)
+      AND EXISTS(SELECT 1 FROM v3_channels WHERE server_id=$1::uuid AND name='geral' AND kind='text' AND archived_at IS NULL AND v3_can_read_channel(id,$2::uuid)) RETURNING id::text`,[b.serverId,user.id,content]);
     if(!inserted.length)return asJson("Você não é membro deste servidor.",403);
     return Response.json({ok:true,id:inserted[0].id});
   }catch{return asJson("Não foi possível enviar a mensagem.",503);}

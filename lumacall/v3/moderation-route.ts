@@ -1,5 +1,31 @@
 import { db,getUser,asJson,isUuid,textValue,mutation,member,permission,json } from "@/lib/v3/community";
+import { getRoomService } from "@/lib/livekit/server";
 export const runtime="nodejs";
+
+// Remove a kicked/banned identity from every currently active voice channel.
+// Database membership removal is authoritative; a LiveKit failure is reported
+// explicitly, never misrepresented as a complete disconnection.
+async function disconnectFromServerCalls(serverId:string,userId:string){
+ const channels=await db<{id:string}>(
+  "SELECT id FROM v3_channels WHERE server_id=$1 AND kind='voice'",[serverId]
+ );
+ const rooms=["v2-"+serverId,...channels.map(c=>"v3-"+c.id)];
+ if(!rooms.length)return {disconnected:true,failedRooms:0};
+ const client=getRoomService();
+ const active=await client.listRooms(rooms);
+ const names=active.map(room=>room.name);
+ if(!names.length)return {disconnected:true,failedRooms:0};
+ const revokeTokenTs=BigInt(Math.floor(Date.now()/1000)+30);
+ const results=await Promise.allSettled(
+  names.map(name=>client.removeParticipant(name,userId,{revokeTokenTs}))
+ );
+ const failedRooms=results.filter(r=>r.status==="rejected").length;
+ if(failedRooms)console.error("LumaCall call removal failed",{
+  serverId,failedRooms,attempted:results.length
+ });
+ return {disconnected:failedRooms===0,failedRooms};
+}
+
 export async function GET(request:Request){
  try{
   const user=await getUser();if(!user)return asJson("Entre na conta.",401);
@@ -36,6 +62,14 @@ export async function POST(request:Request){
   }else{
    await db("WITH removed AS (DELETE FROM v2_memberships WHERE server_id=$1 AND user_id=$2 RETURNING user_id) UPDATE v2_servers SET member_count=greatest(1,member_count-(SELECT count(*) FROM removed)) WHERE id=$1",[b.serverId,b.userId]);
   }
-  return json({ok:true});
+  try{
+   const callResult=await disconnectFromServerCalls(b.serverId,b.userId);
+   return json({ok:true,...callResult});
+  }catch{
+   // Moderation database action has already committed. Never lie about
+   // the call result or retry the database mutation blindly.
+   console.error("LumaCall voice disconnect could not be verified",{serverId:b.serverId});
+   return json({ok:true,disconnected:false,warning:"A remoção do servidor foi concluída, mas não foi possível confirmar a desconexão da chamada. Verifique a sala."});
+  }
  }catch{return asJson("Não foi possível moderar o membro.",503);}
 }
