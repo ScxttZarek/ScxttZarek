@@ -195,3 +195,15 @@ test("archiving a channel never promises to publish its messages in general chat
  assert.ok(panel.includes("não será transferido para o canal geral"));
  assert.ok(!panel.includes("As mensagens serão preservadas no canal geral"));
 });
+
+test("voice rooms offer explicit audio unlock and do not notify leave twice",()=>{
+ const s=code("v2/voice.tsx");
+ assert.ok(s.includes("StartAudio"));
+ assert.ok(s.includes('label="Ativar áudio da chamada"'));
+ assert.ok(s.includes("const leaveNotified=useRef(false)"));
+ assert.ok(s.includes("if(leaveNotified.current)return"));
+ assert.ok(s.includes("onDisconnected={notifyLeave}"));
+ assert.ok(s.includes("onLeave={notifyLeave}"));
+ const styles=code("v2/call-stage.css");
+ assert.ok(styles.includes(".lc-call-layout .lk-start-audio-button"));
+});
