@@ -113,7 +113,7 @@ test("DM POST accepts authorized thread message and returns a primitive id",asyn
  assert.deepEqual(Array.from(write.args),[threadId,user.id,"hello"]);
 });
 
-function fakeVoice({permissions=[{server_id:channelId},{server_id:channelId}],createFails=false,roomExists=true}={}){
+function fakeVoice({permissions=[[{server_id:channelId}],[{server_id:channelId}]],createFails=false,roomExists=true}={}){
  const calls={room:[],tokens:[],signed:0};let check=0;
  const service={
   createRoom:async options=>{calls.room.push(options);if(createFails)throw Error("already exists");},
