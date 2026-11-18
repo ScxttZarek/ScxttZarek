@@ -225,7 +225,7 @@ test("channel privacy updates are atomic and voice archive closes the LiveKit ro
 
 test("channel grant revocation checks effective permissions and evicts unauthorized call participants",()=>{
  const route=code("v3/channels-route.ts");
- assert.ok(route.includes("async function removeUnauthorizedVoiceParticipants(channelId:string)"));
+ assert.ok(route.includes("async function removeUnauthorizedVoiceParticipants(channelId:string,serverId:string,roleId:string)"));
  assert.ok(route.includes("SELECT v3_can_read_channel($1::uuid,$2::uuid) AS allowed"));
  assert.ok(route.includes("revoked.map(p=>client.removeParticipant(roomName,p.identity,{revokeTokenTs}))"));
  assert.ok(route.includes('if(c.kind==="voice"&&!b.enabled)'));
