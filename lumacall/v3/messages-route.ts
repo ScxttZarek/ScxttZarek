@@ -14,8 +14,8 @@ export async function GET(request:Request){
   // Keyset paging preserves ordering under concurrent writes.
   const raw=await db<{id:string;content:string;created_at:string;edited_at:string|null;deleted_at:string|null;user_id:string;name:string;badge:string|null;avatar_data_url:string|null}>(
    "SELECT m.id::text AS id,m.content,m.created_at,m.edited_at,m.deleted_at,u.id AS user_id,u.name,u.badge,u.avatar_data_url "+
-   "FROM (SELECT x.* FROM v2_messages x WHERE x.channel_id=$1 AND ($2::bigint IS NULL OR x.id<$2::bigint) ORDER BY x.id DESC LIMIT 101) m "+
-   "JOIN v2_users u ON u.id=m.user_id ORDER BY m.id ASC",[id,before]
+   "FROM (SELECT x.* FROM v2_messages x WHERE x.channel_id=$1 AND v3_can_read_channel(x.channel_id,$3::uuid) AND ($2::bigint IS NULL OR x.id<$2::bigint) ORDER BY x.id DESC LIMIT 101) m "+
+   "JOIN v2_users u ON u.id=m.user_id ORDER BY m.id ASC",[id,before,user.id]
   );
   const hasMore=raw.length>100,messages=hasMore?raw.slice(1):raw;
   const first=messages[0]?.id,last=messages[messages.length-1]?.id;
@@ -23,7 +23,8 @@ export async function GET(request:Request){
    "SELECT r.message_id::text AS message_id,r.emoji,r.user_id FROM v3_reactions r "+
    "JOIN v2_messages m ON m.id=r.message_id "+
    "WHERE m.channel_id=$1 AND r.message_id BETWEEN $2::bigint AND $3::bigint "+
-   "ORDER BY r.message_id DESC LIMIT 5000",[id,first,last]
+   "AND v3_can_read_channel(m.channel_id,$4::uuid) "+
+   "ORDER BY r.message_id DESC LIMIT 5000",[id,first,last,user.id]
   ):[];
   return json({messages,reactions,nextCursor:hasMore?first:null});
  }catch{return asJson("Não foi possível carregar as mensagens.",503);}
@@ -47,8 +48,16 @@ export async function POST(request:Request){
   if(!isUuid(b.channelId)||typeof b.content!=="string")return asJson("Canal ou mensagem inválidos.");
   const content=b.content.trim();
   if(content.length<1||content.length>2000)return asJson("Mensagem precisa ter entre 1 e 2000 caracteres.");
-  const c=await readable(b.channelId,user.id);if(!c)return asJson("Sem permissão para enviar neste canal.",403);
-  const rows=await db<{id:string}>("INSERT INTO v2_messages(server_id,channel_id,user_id,content) VALUES($1,$2,$3,$4) RETURNING id::text",[c.server_id,b.channelId,user.id,content]);
+  // Evaluate channel membership and visibility within the INSERT statement,
+  // not in a separate query that could outlive a revocation or archival.
+  const rows=await db<{id:string}>(
+   "INSERT INTO v2_messages(server_id,channel_id,user_id,content) "+
+   "SELECT c.server_id,c.id,$2::uuid,$3::text FROM v3_channels c "+
+   "WHERE c.id=$1::uuid AND c.kind='text' AND c.archived_at IS NULL "+
+   "AND v3_can_read_channel(c.id,$2::uuid) RETURNING id::text",
+   [b.channelId,user.id,content]
+  );
+  if(!rows[0])return asJson("Sem permissão para enviar neste canal.",403);
   return json({ok:true,id:rows[0].id});
  }catch{return asJson("Não foi possível enviar a mensagem.",503);}
 }
@@ -63,7 +72,13 @@ export async function PATCH(request:Request){
   if(!existing[0]||existing[0].deleted_at)return asJson("Mensagem não encontrada.",404);
   if(existing[0].user_id!==user.id)return asJson("Você só pode editar suas mensagens.",403);
   if(!(await readable(existing[0].channel_id,user.id)))return asJson("Sem acesso ao canal.",403);
-  await db("UPDATE v2_messages SET content=$1,edited_at=now() WHERE id=$2 AND user_id=$3 AND deleted_at IS NULL",[content,b.id,user.id]);
+  const changed=await db<{id:string}>(
+   "UPDATE v2_messages SET content=$1,edited_at=now() WHERE id=$2 AND user_id=$3 AND deleted_at IS NULL "+
+   "AND EXISTS(SELECT 1 FROM v3_channels c WHERE c.id=v2_messages.channel_id AND c.kind='text' "+
+   "AND v3_can_read_channel(c.id,$3::uuid)) RETURNING id::text",
+   [content,b.id,user.id]
+  );
+  if(!changed.length)return asJson("Sem acesso à mensagem.",403);
   return json({ok:true});
  }catch{return asJson("Não foi possível editar a mensagem.",503);}
 }
@@ -77,7 +92,14 @@ export async function DELETE(request:Request){
   const m=existing[0];if(!m)return asJson("Mensagem não encontrada.",404);
   if(!(await readable(m.channel_id,user.id)))return asJson("Sem acesso.",403);
   if(m.user_id!==user.id&&!(await permission(m.server_id,user.id,"messages")))return asJson("Sem permissão para excluir mensagens de outras pessoas.",403);
-  await db("UPDATE v2_messages SET content='Mensagem excluída',deleted_at=now() WHERE id=$1 AND deleted_at IS NULL",[b.id]);
+  const changed=await db<{id:string}>(
+   "UPDATE v2_messages SET content='Mensagem excluída',deleted_at=now() "+
+   "WHERE id=$1 AND deleted_at IS NULL AND EXISTS(SELECT 1 FROM v3_channels c "+
+   "WHERE c.id=v2_messages.channel_id AND c.kind='text' AND v3_can_read_channel(c.id,$2::uuid)) "+
+   "AND (user_id=$2::uuid OR v3_user_permission(server_id,$2::uuid,'messages')) RETURNING id::text",
+   [b.id,user.id]
+  );
+  if(!changed.length)return asJson("Sem acesso à mensagem.",403);
   return json({ok:true});
  }catch{return asJson("Não foi possível excluir a mensagem.",503);}
 }

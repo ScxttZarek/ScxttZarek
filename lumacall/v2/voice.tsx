@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import {
-  LiveKitRoom, RoomAudioRenderer, VideoTrack, isTrackReference,
+  LiveKitRoom, RoomAudioRenderer, StartAudio, VideoTrack, isTrackReference,
   useConnectionState, useLocalParticipant, useParticipants, useRoomContext, useTracks
 } from "@livekit/components-react";
 import { ConnectionState, Track } from "livekit-client";
@@ -98,6 +98,9 @@ function CallContent({members,onLeave,roomError}:{members:Member[];onLeave:()=>v
       </button>
     </div>}
     {(error||roomError)&&<p className="lc-call-error" role="alert">{error||roomError}{error&&<button type="button" aria-label="Fechar aviso" onClick={()=>setError("")}><X size={15}/></button>}</p>}
+    {/* Safari/mobile and other browsers may require a new user gesture before
+        remote audio can play; LiveKit hides this button when not needed. */}
+    <StartAudio label="Ativar áudio da chamada"/>
 
     <main className={"lc-call-stage"+(viewedTrack?" lc-call-stage--watching":"")}>
       {viewedTrack&&<section ref={viewerRef} className={"lc-call-viewer"+(expandedFallback?" lc-call-viewer--expanded":"")} aria-label={"Transmissão de "+viewerName}>
@@ -168,11 +171,18 @@ export function VoiceRoom({token,url,members,onLeave,visible}:{
   token:string;url:string;members:Member[];onLeave:()=>void;visible:boolean;
 }){
   const [roomError,setRoomError]=useState("");
+  const leaveNotified=useRef(false);
+  useEffect(()=>{leaveNotified.current=false;setRoomError("");},[token]);
+  function notifyLeave(){
+    if(leaveNotified.current)return;
+    leaveNotified.current=true;
+    onLeave();
+  }
   return <div className={visible?"lc-call-root":"lc-call-root lc-call-root--hidden"}>
     <LiveKitRoom className="lc-call-provider" token={token} serverUrl={url} connect
       audio={false} video={false} options={{adaptiveStream:true,dynacast:true}}
-      onDisconnected={onLeave} onError={()=>setRoomError("Não foi possível conectar todos os recursos da chamada. Verifique sua conexão e tente novamente.")}>
-      <RoomAudioRenderer/><CallContent members={members} onLeave={onLeave} roomError={roomError}/>
+      onDisconnected={notifyLeave} onError={()=>setRoomError("Não foi possível conectar todos os recursos da chamada. Verifique sua conexão e tente novamente.")}>
+      <RoomAudioRenderer/><CallContent members={members} onLeave={notifyLeave} roomError={roomError}/>
     </LiveKitRoom>
   </div>;
 }

@@ -51,6 +51,7 @@ export function DMPanel({userId,initialPeerId,onClose}:{userId:string;initialPee
  useEffect(()=>{
   selectedRef.current=selected;
   followed.current=true;
+  setDraft("");setError("");
   setMessages([]);setOlderCursor(null);setOlderLoading(false);
   historyInitialized.current=false;restoreScroll.current=null;
   requestRef.current++;
@@ -67,21 +68,28 @@ export function DMPanel({userId,initialPeerId,onClose}:{userId:string;initialPee
    }catch(e){if(selectedRef.current===id&&requestRef.current===n)setError(updateError(e));}
   };
   void update();
-  const interval=window.setInterval(()=>void update(),3500);
-  return()=>{clearInterval(interval);requestRef.current++;};
+  // Background tabs should not continuously poll Neon. The foreground
+  // transition explicitly refreshes the selected conversation.
+  const refreshVisible=()=>{if(document.visibilityState==="visible")void update();};
+  const interval=window.setInterval(refreshVisible,3500);
+  document.addEventListener("visibilitychange",refreshVisible);
+  return()=>{clearInterval(interval);document.removeEventListener("visibilitychange",refreshVisible);requestRef.current++;};
  },[selected]);
  useEffect(()=>{
   if(followed.current&&scroll.current)scroll.current.scrollTop=scroll.current.scrollHeight;
  },[messages[messages.length-1]?.id,selected]);
  async function send(e:FormEvent){
   e.preventDefault();if(!selected||!draft.trim()||busy)return;
+  const threadId=selected,content=draft.trim();
   setBusy(true);setError("");
   try{
-   await apiV3("/api/v3/dm","POST",{threadId:selected,content:draft.trim()});
+   await apiV3("/api/v3/dm","POST",{threadId,content});
+   if(selectedRef.current!==threadId)return;
    setDraft("");followed.current=true;
-   const result=await apiV3<DMPage>("/api/v3/dm?threadId="+encodeURIComponent(selected));
-   setMessages(previous=>mergeDM(previous,result.messages));void loadThreads();
-  }catch(e){setError(updateError(e));}finally{setBusy(false);}
+   const result=await apiV3<DMPage>("/api/v3/dm?threadId="+encodeURIComponent(threadId));
+   if(selectedRef.current===threadId)setMessages(previous=>mergeDM(previous,result.messages));
+   void loadThreads();
+  }catch(e){if(selectedRef.current===threadId)setError(updateError(e));}finally{setBusy(false);}
  }
  async function loadOlder(){
   if(!selected||!olderCursor||olderLoading)return;
