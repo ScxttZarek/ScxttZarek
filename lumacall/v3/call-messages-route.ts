@@ -6,7 +6,7 @@ export async function GET(request:Request){
   const params=new URL(request.url).searchParams;
   const channelId=params.get("channelId"),before=params.get("before");
   if(!isUuid(channelId))return asJson("Canal inválido.");
-  if(before!==null&&(!/^\\d{1,19}$/.test(before)||BigInt(before)>BigInt("9223372036854775807")||BigInt(before)<1n))return asJson("Cursor inválido.");
+  if(before!==null&&(!/^\d{1,19}$/.test(before)||BigInt(before)>BigInt("9223372036854775807")||BigInt(before)<1n))return asJson("Cursor inválido.");
   const allowed=await db("SELECT 1 FROM v3_channels WHERE id=$1 AND kind='voice' AND archived_at IS NULL AND v3_can_read_channel(id,$2::uuid)",[channelId,user.id]);
   if(!allowed.length)return asJson("Sem acesso a esta chamada.",403);
   // Keyset pages are scoped to this voice channel and re-check access in SQL.
