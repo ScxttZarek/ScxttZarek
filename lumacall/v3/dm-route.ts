@@ -11,11 +11,17 @@ async function blocked(a:string,b:string){
 export async function GET(request:Request){
  try{
   const user=await getUser();if(!user)return asJson("Entre na conta.",401);
-  const threadId=new URL(request.url).searchParams.get("threadId");
+  const params=new URL(request.url).searchParams;
+  const threadId=params.get("threadId"),before=params.get("before");
   if(threadId){
    if(!isUuid(threadId)||!(await threadFor(threadId,user.id)))return asJson("Conversa não encontrada.",404);
-   const messages=await db("SELECT m.id::text AS id,m.content,m.created_at,m.edited_at,m.user_id,u.name,u.avatar_data_url FROM (SELECT * FROM v3_dm_messages WHERE thread_id=$1 ORDER BY id DESC LIMIT 100) m JOIN v2_users u ON u.id=m.user_id ORDER BY m.id ASC",[threadId]);
-   return json({messages});
+   if(before!==null&&(!/^\d{1,19}$/.test(before)||BigInt(before)>BigInt("9223372036854775807")))return asJson("Cursor inválido.");
+   const raw=await db<{id:string;content:string;created_at:string;edited_at:string|null;user_id:string;name:string;avatar_data_url:string|null}>(
+    "SELECT m.id::text AS id,m.content,m.created_at,m.edited_at,m.user_id,u.name,u.avatar_data_url "+
+    "FROM (SELECT * FROM v3_dm_messages WHERE thread_id=$1 AND ($2::bigint IS NULL OR id<$2::bigint) ORDER BY id DESC LIMIT 101) m "+
+    "JOIN v2_users u ON u.id=m.user_id ORDER BY m.id ASC",[threadId,before]);
+   const hasMore=raw.length>100,messages=hasMore?raw.slice(1):raw;
+   return json({messages,nextCursor:hasMore?messages[0]?.id:null});
   }
   const threads=await db("SELECT t.id,t.created_at,u.id AS peer_id,u.name,u.avatar_data_url,CASE WHEN u.presence='invisible' THEN 'offline' ELSE u.presence END AS presence, (SELECT content FROM v3_dm_messages x WHERE x.thread_id=t.id ORDER BY id DESC LIMIT 1) AS last_message FROM v3_dm_threads t JOIN v2_users u ON u.id=CASE WHEN t.user_a=$1 THEN t.user_b ELSE t.user_a END WHERE t.user_a=$1 OR t.user_b=$1 ORDER BY coalesce((SELECT max(created_at) FROM v3_dm_messages WHERE thread_id=t.id),t.created_at) DESC LIMIT 80",[user.id]);
   return json({threads});

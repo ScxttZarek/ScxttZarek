@@ -88,3 +88,18 @@ test("chat UI can load earlier pages without losing its scroll position",()=>{
  assert.match(s,/el\.scrollTop=saved\.top\+el\.scrollHeight-saved\.height/);
  assert.match(s,/Carregar mensagens anteriores/);
 });
+
+test("private-message pagination keeps thread-level authorization and validates cursor",()=>{
+ const route=code("v3/dm-route.ts");
+ assert.match(route,/threadFor\(threadId,user\.id\)/);
+ assert.match(route,/params\.get\("before"\)/);
+ assert.match(route,/id<\$2::bigint/);
+ assert.match(route,/nextCursor:hasMore\?messages\[0\]\?\.id:null/);
+});
+test("DM timeline merges historical pages while preserving scroll and newer updates",()=>{
+ const ui=code("v3/dm-panel.tsx");
+ assert.match(ui,/async function loadOlder\(/);
+ assert.match(ui,/mergeDM\(previous,data\.messages\)/);
+ assert.match(ui,/mergeDM\(previous,result\.messages\)/);
+ assert.match(ui,/el\.scrollTop=saved\.top\+el\.scrollHeight-saved\.height/);
+});
