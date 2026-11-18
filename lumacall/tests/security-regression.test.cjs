@@ -207,3 +207,10 @@ test("voice rooms offer explicit audio unlock and do not notify leave twice",()=
  const styles=code("v2/call-stage.css");
  assert.ok(styles.includes(".lc-call-layout .lk-start-audio-button"));
 });
+
+test("moderation emits visible warning when LiveKit disconnection is incomplete",()=>{
+ const route=code("v3/moderation-route.ts"),panel=code("v3/community-panel.tsx");
+ assert.ok(route.includes("if(failedRooms)return {disconnected:false,failedRooms,warning:"));
+ assert.ok(panel.includes("result.warning"));
+ assert.ok(panel.includes('title="Arquivar canal"'));
+});

@@ -23,7 +23,8 @@ async function disconnectFromServerCalls(serverId:string,userId:string){
  if(failedRooms)console.error("LumaCall call removal failed",{
   serverId,failedRooms,attempted:results.length
  });
- return {disconnected:failedRooms===0,failedRooms};
+ if(failedRooms)return {disconnected:false,failedRooms,warning:"O membro foi removido do servidor, mas não foi possível confirmar a desconexão de todas as chamadas. Verifique as salas."};
+ return {disconnected:true,failedRooms:0};
 }
 
 export async function GET(request:Request){

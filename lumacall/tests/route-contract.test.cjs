@@ -25,7 +25,9 @@ function makeRoute(relativePath,{getUser=async()=>user,respond=async()=>[],mutat
   isUuid:(value)=>typeof value==="string"&&/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(value),
   mutation,
   json:(value)=>Response.json(value),
-  member:async()=>({role:"member"})
+  member:async(_serverId,userId)=>({role:userId===user.id?"owner":"member"}),
+  permission:async()=>true,
+  textValue:(value,max)=>typeof value==="string"?value.trim().slice(0,max):""
  };
  const module={exports:{}};
  vm.runInNewContext(js,{module,exports:module.exports,require:(moduleName)=>{
@@ -163,4 +165,58 @@ test("existing LiveKit rooms are reused, but missing rooms fail closed",async()=
  const denied=fakeVoice({createFails:true,roomExists:false});
  const failure=await result(await denied.handlers.POST(request("/api/v3/voice","POST",{channelId})));
  assert.equal(failure.status,503);assert.equal(denied.calls.signed,0);
+});
+
+function moderationHarness({failRemoval=false,failListing=false,active=true}={}){
+ const peer="00000000-0000-4000-8000-000000000004";
+ const voiceChannel="00000000-0000-4000-8000-000000000005";
+ const operations={removed:[],rooms:[],mutation:0};
+ const service={
+  listRooms:async names=>{
+   operations.rooms.push(names);
+   if(failListing)throw Error("room service unavailable");
+   return active?[{name:"v3-"+voiceChannel}]:[];
+  },
+  removeParticipant:async(room,id,options)=>{
+   operations.removed.push({room,id,options});
+   if(failRemoval)throw Error("temporary LiveKit failure");
+  }
+ };
+ const harness=makeRoute("v3/moderation-route.ts",{
+  respond:async sql=>{
+   if(sql.startsWith("WITH removed AS")||sql.startsWith("WITH banned AS")){operations.mutation++;return [];}
+   if(sql.startsWith("SELECT id FROM v3_channels"))return [{id:voiceChannel}];
+   throw Error("Unexpected moderation SQL: "+sql);
+  },modules:{"@/lib/livekit/server":{getRoomService:()=>service}}
+ });
+ return {...harness,operations,peer,voiceChannel};
+}
+test("kick disconnects the LiveKit participant with a token revocation cutoff",async()=>{
+ const h=moderationHarness();
+ const r=await result(await h.handlers.POST(request("/api/v3/moderation","POST",{serverId:channelId,userId:h.peer,action:"kick"})));
+ assert.equal(r.status,200);assert.equal(r.body.ok,true);assert.equal(r.body.disconnected,true);
+ assert.equal(r.body.failedRooms,0);assert.equal(h.operations.mutation,1);
+ assert.equal(h.operations.removed.length,1);
+ assert.equal(h.operations.removed[0].room,"v3-"+h.voiceChannel);
+ assert.equal(h.operations.removed[0].id,h.peer);
+ assert.equal(typeof h.operations.removed[0].options.revokeTokenTs,"bigint");
+});
+test("failed LiveKit removal returns warning and does not claim disconnection",async()=>{
+ const h=moderationHarness({failRemoval:true});
+ const r=await result(await h.handlers.POST(request("/api/v3/moderation","POST",{serverId:channelId,userId:h.peer,action:"kick"})));
+ assert.equal(r.status,200);assert.equal(r.body.ok,true);assert.equal(r.body.disconnected,false);
+ assert.equal(r.body.failedRooms,1);assert.equal(typeof r.body.warning,"string");
+ assert.match(r.body.warning,/desconexão/);assert.equal(h.operations.mutation,1);
+});
+test("failed LiveKit room discovery reports uncertainty after a committed removal",async()=>{
+ const h=moderationHarness({failListing:true});
+ const r=await result(await h.handlers.POST(request("/api/v3/moderation","POST",{serverId:channelId,userId:h.peer,action:"kick"})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,false);
+ assert.equal(typeof r.body.warning,"string");assert.equal(h.operations.mutation,1);
+});
+test("kick with no active LiveKit rooms does not make unnecessary disconnect calls",async()=>{
+ const h=moderationHarness({active:false});
+ const r=await result(await h.handlers.POST(request("/api/v3/moderation","POST",{serverId:channelId,userId:h.peer,action:"kick"})));
+ assert.equal(r.status,200);assert.equal(r.body.disconnected,true);
+ assert.equal(h.operations.removed.length,0);
 });

@@ -204,7 +204,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
         </div>
         {canManageChannels&&<div className="v3-row-actions">
          <button type="button" title="Editar canal" onClick={()=>beginChannelEdit(c)}><Edit3 size={15}/></button>
-         <button type="button" disabled={busy} title="Excluir canal" onClick={()=>void deleteChannel(c)}><Trash2 size={15}/></button>
+         <button type="button" disabled={busy} title="Arquivar canal" onClick={()=>void deleteChannel(c)}><Trash2 size={15}/></button>
         </div>}
        </div>)}
       </div>
