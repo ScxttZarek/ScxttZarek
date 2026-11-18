@@ -284,7 +284,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
          </select></label>}
          {canManageRoles&&m.role!=="owner"&&roles.filter(r=>assignments.some(a=>a.user_id===m.id&&a.role_id===r.id)).map(r=><button className="v3-role-assigned" key={r.id} onClick={()=>void toggleRole(m.id,r.id)} title="Remover este cargo" style={{borderColor:r.color}}>{r.name} ×</button>)}
          <button type="button" onClick={()=>void block(m.id,m.name)}>Bloquear</button>
-         {canModerate&&m.role!=="owner"&&<><button type="button" disabled={busy} onClick={()=>void moderate(m.id,m.name,"kick")}>Expulsar</button><button className="v3-danger" disabled={busy} type="button" onClick={()=>void moderate(m.id,m.name,"ban")}><Ban size={13}/> Banir</button></>
+         {canModerate&&m.role!=="owner"&&<><button type="button" disabled={busy} onClick={()=>void moderate(m.id,m.name,"kick")}>Expulsar</button><button className="v3-danger" disabled={busy} type="button" onClick={()=>void moderate(m.id,m.name,"ban")}><Ban size={13}/> Banir</button></>}
         </div>
        </div>)}
       </div>
