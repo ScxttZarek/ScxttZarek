@@ -127,7 +127,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
   await run(()=>apiV3("/api/v3/server-settings","POST",{serverId}));
  }
  async function deleteChannel(channel:Channel){
-  if(!window.confirm('Excluir o canal "'+channel.name+'"? As mensagens serão preservadas no canal geral.'))return;
+  if(!window.confirm('Arquivar o canal "'+channel.name+'"? Seu histórico permanecerá preservado e não será transferido para o canal geral.'))return;
   await run(()=>apiV3("/api/v3/channels","DELETE",{channelId:channel.id}));
  }
  async function saveRole(event:React.FormEvent){

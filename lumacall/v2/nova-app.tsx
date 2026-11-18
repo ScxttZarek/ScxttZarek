@@ -79,6 +79,9 @@ export function NovaApp(){
   const activeServerRef=useRef<string|null>(null);
   const activeChannelRef=useRef<string|null>(null);
   const contentRequestRef=useRef(0);
+  // Guard asynchronous token responses against navigation to another room.
+  const voiceJoinRequestRef=useRef(0);
+  const activeVoiceChannelRef=useRef<string|null>(null);
   const selectedServer=servers.find(s=>s.id===selected);
   const selectedTextChannel=channels.find(c=>c.id===textChannelId&&c.kind==="text");
   const selectedVoiceChannel=channels.find(c=>c.id===voiceChannelId&&c.kind==="voice");
@@ -99,6 +102,8 @@ export function NovaApp(){
       setChannels(data.channels);setCategories(groups.categories);setCanManageChannels(data.canManage);
       setTextChannelId(current=>data.channels.some(c=>c.id===current&&c.kind==="text")?current:data.channels.find(c=>c.kind==="text")?.id||null);
       setVoiceChannelId(current=>data.channels.some(c=>c.id===current&&c.kind==="voice")?current:data.channels.find(c=>c.kind==="voice")?.id||null);
+      // An archived/deleted/private channel must not leave a stale mini-call.
+      setVoice(current=>current?.serverId===serverId&&!data.channels.some(c=>c.id===current.channelId&&c.kind==="voice")?null:current);
     }catch(e){if(activeServerRef.current===serverId)setError(updateError(e));}
   }
   async function loadContent(serverId:string,channelId:string){
@@ -122,11 +127,17 @@ export function NovaApp(){
   }
   useEffect(()=>{
     activeServerRef.current=selected;
+    voiceJoinRequestRef.current++;
+    activeVoiceChannelRef.current=null;
     activeChannelRef.current=null;contentRequestRef.current++;followMessagesRef.current=true;
     setChannels([]);setCategories([]);setCollapsedCategories({});setTextChannelId(null);setVoiceChannelId(null);setMembers([]);setMessages([]);setReactions([]);
     historyInitializedRef.current=false;setOlderCursor(null);setOlderLoading(false);restoreScrollRef.current=null;
     if(selected)void loadChannels(selected);
   },[selected]);
+  useEffect(()=>{
+    activeVoiceChannelRef.current=voiceChannelId;
+    voiceJoinRequestRef.current++;
+  },[voiceChannelId]);
   useEffect(()=>{
     activeChannelRef.current=textChannelId;
     contentRequestRef.current++;followMessagesRef.current=true;
@@ -174,8 +185,9 @@ export function NovaApp(){
     try{await api("/api/v2/auth","POST",{action:authMode,name,secret});setSecret("");await boot();}
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
-  async function logout(){try{await api("/api/v2/auth","DELETE");setVoice(null);setUser(null);setName("");setSecret("");setView("text");setModal(null);}catch(e){setError((e as Error).message);}}
+  async function logout(){voiceJoinRequestRef.current++;try{await api("/api/v2/auth","DELETE");setVoice(null);setUser(null);setName("");setSecret("");setView("text");setModal(null);}catch(e){setError((e as Error).message);}}
   function chooseServer(id:string){
+    voiceJoinRequestRef.current++;
     if(id===selected){setView("text");setSidebarOpen(false);return;}
     activeServerRef.current=id;
     contentRequestRef.current++;
@@ -194,9 +206,18 @@ export function NovaApp(){
     try{await apiV3("/api/v3/messages","POST",{channelId:textChannelId,content:text});setDraft("");followMessagesRef.current=true;await loadContent(selected,textChannelId);}
     catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
   }
-  async function joinVoice(){if(!selected||!voiceChannelId||busy)return;setBusy(true);setError("");
-    try{const out=await api<{token:string;serverUrl:string}>("/api/v3/voice","POST",{channelId:voiceChannelId});setVoice({serverId:selected,channelId:voiceChannelId,token:out.token,serverUrl:out.serverUrl});setView("voice");}
-    catch(ex){setError((ex as Error).message);}finally{setBusy(false);}
+  async function joinVoice(){
+    if(!selected||!voiceChannelId||busy)return;
+    const serverId=selected,channelId=voiceChannelId,requestId=++voiceJoinRequestRef.current;
+    setBusy(true);setError("");
+    try{
+      const out=await api<{token:string;serverUrl:string;serverId:string}>("/api/v3/voice","POST",{channelId});
+      if(requestId!==voiceJoinRequestRef.current||activeServerRef.current!==serverId||activeVoiceChannelRef.current!==channelId)return;
+      if(out.serverId!==serverId)throw Error("A sala mudou durante a conexão. Tente novamente.");
+      setVoice({serverId,channelId,token:out.token,serverUrl:out.serverUrl});
+      setView("voice");
+    }catch(ex){if(requestId===voiceJoinRequestRef.current)setError((ex as Error).message);}
+    finally{setBusy(false);}
   }
   async function updateProfile(e:FormEvent){e.preventDefault();setBusy(true);setError("");
     try{const out=await api<{user:User}>("/api/v2/profile","PATCH",{name:newName,bio:bioDraft,presence:presenceDraft});setUser(out.user);setModal(null);setProfileNotice("");}
@@ -242,10 +263,13 @@ export function NovaApp(){
     catch(e){setError(updateError(e));}finally{setBusy(false);}
   }
   function selectChannel(c:Channel){
+    // Discard an in-flight join if the user switches text or voice channel.
+    voiceJoinRequestRef.current++;
     if(c.kind==="text"){
       activeChannelRef.current=c.id;
       setTextChannelId(c.id);setView("text");setEditingMessage(null);
     }else{
+      activeVoiceChannelRef.current=c.id;
       // Reset a stale LiveKit session when the user selects a different room.
       if(voice&&voice.channelId!==c.id)setVoice(null);
       setVoiceChannelId(c.id);setView("voice");setCallChatOpen(false);

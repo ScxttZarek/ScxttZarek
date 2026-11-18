@@ -174,3 +174,24 @@ test("channel and private-message polling pauses in hidden browser tabs and catc
   assert.ok(s.includes('document.removeEventListener("visibilitychange",refreshVisible)'));
  }
 });
+
+test("voice token creation rechecks access after the room service request",()=>{
+ const route=code("v3/voice-route.ts");
+ assert.ok(route.includes("const stillAllowed=await db"));
+ assert.ok(route.includes("stillAllowed[0].server_id!==rows[0].server_id"));
+ assert.ok(route.indexOf("const stillAllowed=await db")<route.indexOf("const token=new AccessToken"));
+ assert.ok(route.includes('ttl:"10m"'));
+});
+test("navigating away invalidates pending voice joins and stale server calls",()=>{
+ const app=code("v2/nova-app.tsx");
+ assert.ok(app.includes("voiceJoinRequestRef.current++"));
+ assert.ok(app.includes("activeVoiceChannelRef.current=voiceChannelId"));
+ assert.ok(app.includes("requestId!==voiceJoinRequestRef.current"));
+ assert.ok(app.includes("out.serverId!==serverId"));
+ assert.ok(app.includes("setVoice(current=>current?.serverId===serverId"));
+});
+test("archiving a channel never promises to publish its messages in general chat",()=>{
+ const panel=code("v3/community-panel.tsx");
+ assert.ok(panel.includes("não será transferido para o canal geral"));
+ assert.ok(!panel.includes("As mensagens serão preservadas no canal geral"));
+});
