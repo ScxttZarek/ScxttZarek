@@ -213,7 +213,8 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
         <strong>Editar canal</strong>
         <label>Nome<input maxLength={32} required value={editChannelName} onChange={e=>setEditChannelName(e.target.value)}/></label>
  <label>Categoria<select value={editCategoryId} onChange={e=>setEditCategoryId(e.target.value)}><option value="">Sem categoria</option>{categories.map(cat=><option key={cat.id} value={cat.id}>{cat.name}</option>)}</select></label>
-        <label className="v3-checkline"><input type="checkbox" checked={editPrivate} onChange={e=>setEditPrivate(e.target.checked)}/> Canal privado (visível apenas para o dono ou cargos autorizados)</label>
+        <label className="v3-checkline"><input type="checkbox" checked={editPrivate} disabled={channels.some(c=>c.id===editChannelId&&c.is_private)} onChange={e=>setEditPrivate(e.target.checked)}/> Canal privado (visível apenas para o dono ou cargos autorizados)</label>
+        {channels.some(c=>c.id===editChannelId&&c.is_private)&&<small className="v3-muted">Por segurança, um canal privado não pode se tornar público. Crie outro canal público se precisar.</small>}
  {editPrivate&&roles.length>0&&<div className="v3-role-grants"><strong>Cargos autorizados</strong>
   {roles.map(role=><label key={role.id} className="v3-checkline">
    <input type="checkbox" checked={grants.some(g=>g.channel_id===editChannelId&&g.role_id===role.id)}

@@ -146,3 +146,22 @@ test("direct-message write confirms thread membership and absence of bilateral b
  assert.ok(s.includes("bl.blocker_id=t.user_b AND bl.blocked_id=t.user_a"));
  assert.ok(s.includes("if(!rows[0])return asJson"));
 });
+
+test("voice call chat can paginate independently and preserves earlier history on refresh",()=>{
+ const api=code("v3/call-messages-route.ts"),ui=code("v3/call-chat-panel.tsx");
+ for(const phrase of ['params.get("before")',"LIMIT 101","nextCursor:hasMore?messages[0]?.id:null","v3_can_read_channel(c.id,$3::uuid)"])
+  assert.ok(api.includes(phrase),"Call chat missing: "+phrase);
+ for(const phrase of ["function mergeCall(","async function loadOlder()","restoreScroll.current=saved","Carregar mensagens anteriores","document.visibilityState"])
+  assert.ok(ui.includes(phrase),"Call chat UI missing: "+phrase);
+});
+test("private channel edit UI matches irreversible server-side privacy policy",()=>{
+ const s=code("v3/community-panel.tsx");
+ assert.ok(s.includes("disabled={channels.some(c=>c.id===editChannelId&&c.is_private)}"));
+ assert.ok(s.includes("um canal privado não pode se tornar público"));
+});
+test("DM send results cannot merge into a different selected conversation",()=>{
+ const s=code("v3/dm-panel.tsx");
+ assert.ok(s.includes("const threadId=selected,content=draft.trim()"));
+ assert.ok(s.includes("if(selectedRef.current!==threadId)return"));
+ assert.ok(s.includes("if(selectedRef.current===threadId)setMessages(previous=>mergeDM"));
+});
