@@ -120,7 +120,7 @@ test("call-chat reads and writes recheck channel authorization in their SQL",()=
  assert.ok(s.includes("SELECT c.server_id,c.id,$2::uuid,$3::text FROM v3_channels"));
  assert.ok(s.includes("c.kind='voice' AND c.archived_at IS NULL"));
  assert.ok(s.includes("AND v3_can_read_channel(c.id,$2::uuid) RETURNING id::text"));
- assert.ok(s.includes("c.id=v3_call_messages.channel_id AND c.kind='voice' AND v3_can_read_channel(c.id,$2::uuid)"));
+ assert.ok(s.includes("c.id=v3_call_messages.channel_id AND c.kind='voice' AND c.archived_at IS NULL AND v3_can_read_channel(c.id,$3::uuid)"));
 });
 test("server settings validate all requested changes before one owner-scoped UPDATE",()=>{
  const s=code("v3/server-settings-route.ts").split("export async function POST")[0];
