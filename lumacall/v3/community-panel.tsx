@@ -68,8 +68,11 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
  async function run(work:()=>Promise<unknown>){
   if(busy)return;
   setBusy(true);setError("");
-  try{await work();await load();onUpdated();}
-  catch(e){setError(updateError(e));}
+  try{
+   const result=await work();
+   await load();onUpdated();
+   if(result&&typeof result==="object"&&"warning" in result&&typeof result.warning==="string")setError(result.warning);
+  }catch(e){setError(updateError(e));}
   finally{setBusy(false);}
  }
  async function createChannel(event:React.FormEvent){

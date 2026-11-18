@@ -36,6 +36,19 @@ function fields(b:Record<string,unknown>){
  return {name,color,rank,rights};
 }
 function canEdit(a:Actor,r:Role){return a.owner||r.priority<a.rank;}
+// Editing or deleting a role changes the permissions of EVERY holder.
+// A delegated manager must never modify a role currently held by themselves,
+// the owner, or an equal/higher ranked member, even if this role has low priority.
+async function hasProtectedHolder(serverId:string,roleId:string,actorId:string,actorRank:number):Promise<boolean>{
+ const rows=await db(
+  "SELECT 1 FROM v3_member_roles a JOIN v2_memberships m ON m.server_id=a.server_id AND m.user_id=a.user_id "+
+  "WHERE a.server_id=$1 AND a.role_id=$2 AND (a.user_id=$3 OR m.role='owner' "+
+  "OR (SELECT coalesce(max(r.priority),-1) FROM v3_member_roles mr JOIN v3_roles r ON r.id=mr.role_id "+
+  "AND r.server_id=mr.server_id WHERE mr.server_id=a.server_id AND mr.user_id=a.user_id)>=$4) LIMIT 1",
+  [serverId,roleId,actorId,actorRank]
+ );
+ return rows.length>0;
+}
 function canCreate(a:Actor,p:{rank:number;rights:Rights}){return a.owner||(p.rank<a.rank&&within(p.rights,a.rights));}
 
 export async function GET(request:Request){
@@ -86,6 +99,7 @@ export async function PATCH(request:Request){
   if(!isUuid(b.roleId))return asJson("Cargo inválido.");
   const r=await roleFor(b.serverId,b.roleId);if(!r)return asJson("Cargo não encontrado.",404);
   if(!canEdit(a,r))return asJson("Cargo de hierarquia superior.",403);
+  if(!a.owner&&await hasProtectedHolder(b.serverId,b.roleId,u.id,a.rank))return asJson("Cargo atribuído a você ou a um membro de hierarquia superior.",403);
   const p=fields(b);if(!p)return asJson("Dados inválidos.");
   if(!canCreate(a,p))return asJson("Você não pode criar permissões ou hierarquia superiores às suas.",403);
   await db("UPDATE v3_roles SET name=$1,color=$2,priority=$3,manage_channels=$4,manage_messages=$5,moderate_members=$6,manage_roles=$7 WHERE id=$8 AND server_id=$9",[p.name,p.color,p.rank,p.rights.channels,p.rights.messages,p.rights.moderation,p.rights.roles,b.roleId,b.serverId]);
@@ -101,6 +115,7 @@ export async function DELETE(request:Request){
   const a=await actorFor(b.serverId,u.id);if(!a)return asJson("Sem permissão.",403);
   const r=await roleFor(b.serverId,b.roleId);if(!r)return asJson("Cargo não encontrado.",404);
   if(!canEdit(a,r)||(!a.owner&&!within(rightSet(r),a.rights)))return asJson("Cargo fora da sua hierarquia.",403);
+  if(!a.owner&&await hasProtectedHolder(b.serverId,b.roleId,u.id,a.rank))return asJson("Não é possível excluir um cargo atribuído a um membro de hierarquia igual ou superior.",403);
   await db("DELETE FROM v3_roles WHERE id=$1 AND server_id=$2",[b.roleId,b.serverId]);
   return json({ok:true});
  }catch{return asJson("Não foi possível excluir o cargo.",503);}
