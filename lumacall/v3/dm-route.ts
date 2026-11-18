@@ -38,7 +38,20 @@ export async function POST(request:Request){
    const shared=await db("SELECT 1 FROM v2_memberships x JOIN v2_memberships y ON y.server_id=x.server_id AND y.user_id=$2 WHERE x.user_id=$1 LIMIT 1",[user.id,b.peerId]);
    if(!shared.length)return asJson("Só é possível conversar com membros de um servidor em comum.",403);
    const a=user.id<b.peerId?user.id:b.peerId,z=user.id<b.peerId?b.peerId:user.id;
-   const rows=await db<{id:string}>("INSERT INTO v3_dm_threads(user_a,user_b) VALUES($1,$2) ON CONFLICT(user_a,user_b) DO UPDATE SET user_a=EXCLUDED.user_a RETURNING id",[a,z]);
+   // Recheck shared-server membership and bilateral blocks in the same SQL
+   // statement that creates (or opens) the DM thread. Prior reads may be stale.
+   const rows=await db<{id:string}>(
+    "INSERT INTO v3_dm_threads(user_a,user_b) "+
+    "SELECT $1::uuid,$2::uuid WHERE EXISTS("+
+    "SELECT 1 FROM v2_memberships x JOIN v2_memberships y ON y.server_id=x.server_id "+
+    "WHERE x.user_id=$1::uuid AND y.user_id=$2::uuid) "+
+    "AND NOT EXISTS(SELECT 1 FROM v3_blocks bl WHERE "+
+    "(bl.blocker_id=$1::uuid AND bl.blocked_id=$2::uuid) OR "+
+    "(bl.blocker_id=$2::uuid AND bl.blocked_id=$1::uuid)) "+
+    "ON CONFLICT(user_a,user_b) DO UPDATE SET user_a=EXCLUDED.user_a RETURNING id",
+    [a,z]
+   );
+   if(!rows[0])return asJson("Conversa indisponível.",403);
    return json({threadId:rows[0].id});
   }
   if(!isUuid(b.threadId)||typeof b.content!=="string")return asJson("Conversa ou mensagem inválidas.");

@@ -238,3 +238,11 @@ test("role removals reconcile effective private voice room permissions",()=>{
  assert.ok(s.includes("return await reportRoleVoiceCleanup(b.serverId)"));
  assert.ok(s.includes("revoked.map(p=>client.removeParticipant(p.roomName,p.identity,{revokeTokenTs}))"));
 });
+
+test("DM conversation opening and CSRF origin checks are scoped to current authorization",()=>{
+ const dm=code("v3/dm-route.ts"),auth=code("v2/auth.ts");
+ assert.ok(dm.includes("INSERT INTO v3_dm_threads(user_a,user_b)"));
+ assert.ok(dm.includes("SELECT $1::uuid,$2::uuid WHERE EXISTS("));
+ assert.ok(dm.includes("if(!rows[0])return asJson(\"Conversa indisponível.\",403)"));
+ assert.ok(auth.includes("new URL(origin).origin===new URL(request.url).origin"));
+});

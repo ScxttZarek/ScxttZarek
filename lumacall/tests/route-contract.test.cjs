@@ -385,3 +385,51 @@ test("role cleanup does not remove participants when no private voice call is ac
  assert.equal(r.status,200);assert.equal(r.body.disconnected,true);
  assert.equal(h.events.removed.length,0);
 });
+
+test("opening a DM thread rechecks common server and both block directions during INSERT",async()=>{
+ const peer="00000000-0000-4000-8000-000000000004";
+ const h=makeRoute("v3/dm-route.ts",{respond:async sql=>{
+  if(sql.startsWith("SELECT 1 FROM v3_blocks"))return [];
+  if(sql.startsWith("SELECT 1 FROM v2_memberships"))return [{yes:1}];
+  if(sql.startsWith("INSERT INTO v3_dm_threads"))return [];
+  throw Error("Unexpected SQL: "+sql);
+ }});
+ const r=await result(await h.handlers.POST(request("/api/v3/dm","POST",{action:"open",peerId:peer})));
+ assert.equal(r.status,403);
+ const insert=h.calls.find(x=>x.sql.startsWith("INSERT INTO v3_dm_threads"));
+ assert.ok(insert);assert.match(insert.sql,/EXISTS\(/);
+ assert.match(insert.sql,/v2_memberships/);assert.match(insert.sql,/v3_blocks/);
+ assert.match(insert.sql,/ON CONFLICT\(user_a,user_b\)/);
+});
+test("DM thread open returns id after conditional INSERT authorizes both participants",async()=>{
+ const peer="00000000-0000-4000-8000-000000000004";
+ const h=makeRoute("v3/dm-route.ts",{respond:async sql=>{
+  if(sql.startsWith("SELECT 1 FROM v3_blocks"))return [];
+  if(sql.startsWith("SELECT 1 FROM v2_memberships"))return [{yes:1}];
+  if(sql.startsWith("INSERT INTO v3_dm_threads"))return [{id:threadId}];
+  throw Error("Unexpected SQL: "+sql);
+ }});
+ const r=await result(await h.handlers.POST(request("/api/v3/dm","POST",{action:"open",peerId:peer})));
+ assert.equal(r.status,200);assert.equal(r.body.threadId,threadId);
+});
+test("origin checker matches full origin, including scheme and port",()=>{
+ const crypto=require("node:crypto"),util=require("node:util");
+ const source=fs.readFileSync(path.join(root,"v2/auth.ts"),"utf8");
+ const compiled=ts.transpileModule(source,{fileName:"v2/auth.ts",compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2019}}).outputText;
+ const module={exports:{}};
+ vm.runInNewContext(compiled,{module,exports:module.exports,require:name=>{
+  if(name==="next/headers")return {cookies:async()=>({get:()=>undefined})};
+  if(name==="node:crypto")return crypto;
+  if(name==="node:util")return util;
+  if(name==="./database")return {db:async()=>[]};
+  throw Error("Unexpected auth import: "+name);
+ },process:{env:{NODE_ENV:"test"}},Buffer,URL,Response,console},{filename:"v2/auth.ts",timeout:2000});
+ const verify=module.exports.verifyOrigin;
+ const sample=(url,origin)=>({url,headers:new Headers(origin===null?{}:{origin})});
+ assert.equal(verify(sample("https://test.local/api/v2/auth","https://test.local")),true);
+ assert.equal(verify(sample("http://localhost:3000/api/v2/auth","http://localhost:3000")),true);
+ assert.equal(verify(sample("https://test.local/api/v2/auth","http://test.local")),false);
+ assert.equal(verify(sample("https://test.local/api/v2/auth","https://test.local:8443")),false);
+ assert.equal(verify(sample("https://test.local/api/v2/auth","https://attacker.test.local")),false);
+ assert.equal(verify(sample("https://test.local/api/v2/auth",null)),false);
+});

@@ -43,7 +43,9 @@ export async function getUser():Promise<User|null>{
 export function verifyOrigin(request:Request) {
   const origin=request.headers.get("origin");
   if(!origin)return false;
-  try {return new URL(origin).host===new URL(request.url).host;} catch {return false;}
+  // The scheme is part of the origin. A same-host HTTP page is not the
+  // same origin as HTTPS, and must not be accepted for cookie mutations.
+  try {return new URL(origin).origin===new URL(request.url).origin;} catch {return false;}
 }
 export function asJson(error:string,status=400) {
   return Response.json({error},{status,headers:{"cache-control":"no-store"}});
