@@ -63,7 +63,7 @@ test("call chat GET rejects access when voice channel is no longer available",as
 test("call chat GET returns 100 newest records plus stable pagination cursor",async()=>{
  const history=Array.from({length:101},(_,i)=>({id:String(i+1),content:"Message "+(i+1),name:"Tester"}));
  const h=makeRoute("v3/call-messages-route.ts",{respond:async sql=>{
-  if(sql.includes("SELECT 1 FROM v3_channels"))return [{allowed:true}];
+  if(sql.startsWith("SELECT 1 FROM v3_channels"))return [{allowed:true}];
   if(sql.includes("FROM (SELECT * FROM v3_call_messages"))return history;
   throw Error("Unexpected SQL: "+sql);
  }});
@@ -90,8 +90,8 @@ test("call chat POST returns inserted id and normalizes message text",async()=>{
 test("DM POST refuses writes when thread access or blocking changes before INSERT",async()=>{
  const h=makeRoute("v3/dm-route.ts",{respond:async sql=>{
   if(sql.includes("SELECT user_a,user_b"))return [{user_a:user.id,user_b:"00000000-0000-4000-8000-000000000004"}];
-  if(sql.includes("SELECT 1 FROM v3_blocks"))return [];
-  if(sql.includes("INSERT INTO v3_dm_messages"))return [];
+  if(sql.startsWith("SELECT 1 FROM v3_blocks"))return [];
+  if(sql.startsWith("INSERT INTO v3_dm_messages"))return [];
   throw Error("Unexpected SQL: "+sql);
  }});
  const r=await result(await h.handlers.POST(request("/api/v3/dm","POST",{threadId,content:"A private message"})));
@@ -102,8 +102,8 @@ test("DM POST refuses writes when thread access or blocking changes before INSER
 test("DM POST accepts authorized thread message and returns a primitive id",async()=>{
  const h=makeRoute("v3/dm-route.ts",{respond:async sql=>{
   if(sql.includes("SELECT user_a,user_b"))return [{user_a:user.id,user_b:"00000000-0000-4000-8000-000000000004"}];
-  if(sql.includes("SELECT 1 FROM v3_blocks"))return [];
-  if(sql.includes("INSERT INTO v3_dm_messages"))return [{id:"512"}];
+  if(sql.startsWith("SELECT 1 FROM v3_blocks"))return [];
+  if(sql.startsWith("INSERT INTO v3_dm_messages"))return [{id:"512"}];
   throw Error("Unexpected SQL: "+sql);
  }});
  const r=await result(await h.handlers.POST(request("/api/v3/dm","POST",{threadId,content:"  hello  "})));
