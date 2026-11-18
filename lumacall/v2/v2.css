@@ -136,3 +136,12 @@
 .v2-channel,.v2-server-icon,.v2-add-server,.v2-top-actions button{transition:background-color .14s ease,color .14s ease,border-color .14s ease}
 .v2-message-content,.v2-stream-title>span,.v2-top-actions{min-width:0}
 @media(prefers-reduced-motion:reduce){.v2-channel,.v2-server-icon,.v2-add-server,.v2-top-actions button{transition:none}}
+
+/* Member actions should be discoverable without opening settings first. */
+.v2-members-heading{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-bottom:12px}
+.v2-members-heading h3{margin:0;min-width:0;font-size:10px}
+.v2-members-heading>button{min-height:32px;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:5px 8px;border:1px solid #393939;border-radius:8px;background:#191919;color:#d8d8d8;font-size:10px;cursor:pointer}
+.v2-members-heading>button:hover{background:#282828;border-color:#606060;color:#fff}
+.v2-top-actions button:focus-visible,.v2-members-heading>button:focus-visible{outline:2px solid #f0f0f0;outline-offset:2px}
+@media(max-width:650px){.v2-top-actions{gap:4px}.v2-top-actions button{padding:8px;min-width:34px}}
+@media(min-width:651px) and (max-width:1080px){.v2-top-actions button>span{display:none}}

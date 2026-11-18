@@ -60,6 +60,8 @@ export function NovaApp(){
   const [voiceChannelId,setVoiceChannelId]=useState<string|null>(null);
   const [canManageChannels,setCanManageChannels]=useState(false);
   const [showCommunity,setShowCommunity]=useState(false);
+  const [communityTab,setCommunityTab]=useState<"server"|"members">("server");
+  function openCommunity(tab:"server"|"members"="server"){setCommunityTab(tab);setShowCommunity(true);setSidebarOpen(false);}
   const [dmOpen,setDmOpen]=useState(false);
   const [dmPeer,setDmPeer]=useState<string|null>(null);
   const [callChatOpen,setCallChatOpen]=useState(false);
@@ -305,12 +307,12 @@ export function NovaApp(){
     <ServerRail servers={servers} selected={selected} onSelect={chooseServer} onCreate={()=>{setError("");setModal("create")}} onJoin={()=>{setError("");setModal("join")}}/>
     {sidebarOpen&&<button className="v2-mobile-backdrop" type="button" aria-label="Fechar lista de canais" onClick={()=>setSidebarOpen(false)}/>}
     <aside id="lc-sidebar" className={"v2-sidebar "+(sidebarOpen?"v2-sidebar-open":"")}>
-      <div className="v2-server-name"><strong>{selectedServer?.name||"Seus servidores"}</strong>{selectedServer&&<button type="button" className="v3-section-action" title="Configurações do servidor" aria-label="Configurações do servidor" onClick={()=>setShowCommunity(true)}><Settings2 size={17}/></button>}</div>
+      <div className="v2-server-name"><strong>{selectedServer?.name||"Seus servidores"}</strong>{selectedServer&&<button type="button" className="v3-section-action" title="Configurações do servidor" aria-label="Configurações do servidor" onClick={()=>openCommunity()}><Settings2 size={17}/></button>}</div>
       <div className="v2-channel-scroll">
         {selectedServer?<>
-          <div className="v2-channel-section v3-channel-heading">CANAIS DE TEXTO{canManageChannels&&<button type="button" className="v3-section-action" title="Gerenciar canais" onClick={()=>setShowCommunity(true)}><Plus size={15}/></button>}</div>
+          <div className="v2-channel-section v3-channel-heading">CANAIS DE TEXTO{canManageChannels&&<button type="button" className="v3-section-action" title="Gerenciar canais" onClick={()=>openCommunity()}><Plus size={15}/></button>}</div>
           {renderChannels("text")}
-          <div className="v2-channel-section v3-channel-heading">CANAIS DE VOZ{canManageChannels&&<button type="button" className="v3-section-action" title="Gerenciar canais de voz" onClick={()=>setShowCommunity(true)}><Plus size={15}/></button>}</div>
+          <div className="v2-channel-section v3-channel-heading">CANAIS DE VOZ{canManageChannels&&<button type="button" className="v3-section-action" title="Gerenciar canais de voz" onClick={()=>openCommunity()}><Plus size={15}/></button>}</div>
           {renderChannels("voice")}
           {channels.length===0&&<p className="v3-channel-list-empty">Carregando canais…</p>}
         </>:<div className="v2-sidebar-empty"><ServerIcon size={26}/><p>Crie seu primeiro servidor ou entre pelo código de convite.</p></div>}
@@ -327,7 +329,7 @@ export function NovaApp(){
         serverName={selectedServer?.name||"Bem-vindo ao LumaCall"} hasServer={Boolean(selectedServer)} sidebarOpen={sidebarOpen}
         lastCopied={lastCopied} callActive={Boolean(voice&&voice.serverId===selected&&voice.channelId===voiceChannelId)}
         onToggleSidebar={()=>setSidebarOpen(!sidebarOpen)} onCopyInvite={()=>void copyInvite()} onProfile={openProfile}
-        onSettings={()=>setShowCommunity(true)} onMessages={()=>openDM(null)} onToggleCallChat={()=>setCallChatOpen(v=>!v)}/>
+        onSettings={()=>openCommunity()} onMembers={()=>openCommunity("members")} onMessages={()=>openDM(null)} onToggleCallChat={()=>setCallChatOpen(v=>!v)}/>
       {error&&<div className="v2-banner" role="alert">{error}<button type="button" onClick={()=>setError("")}><X size={16}/></button></div>}
       {!selectedServer?<div className="v2-first-server"><div className="v2-first-icon"><ServerIcon size={37}/></div><h1>Um lugar só seu.</h1><p>Crie um servidor para conversar por texto, áudio ou vídeo com até seis pessoas.</p><button type="button" className="v2-primary" onClick={()=>setModal("create")}><Plus size={18}/> Criar servidor</button><button type="button" className="v2-secondary" onClick={()=>setModal("join")}>Entrar com convite</button></div>:
       <div className="v2-main-layout">
@@ -379,10 +381,10 @@ export function NovaApp(){
             <button type="button" className="v2-primary" onClick={()=>void joinVoice()} disabled={busy||!voiceChannelId}><Mic size={18}/>{busy?"Conectando...":"Entrar na chamada"}</button>
           </div>}
         </div>
-        <MembersPanel members={members} currentUserId={user.id} onMessage={id=>openDM(id)}/>
+        <MembersPanel members={members} currentUserId={user.id} onMessage={id=>openDM(id)} onManage={()=>openCommunity("members")}/>
       </div>}
     </div>
-    {showCommunity&&selected&&selectedServer&&<CommunityPanel serverId={selected} serverName={selectedServer.name} serverIcon={selectedServer.icon_data_url} inviteCode={selectedServer.invite_code} isOwner={selectedServer.role==="owner"} members={members} onClose={()=>setShowCommunity(false)}
+    {showCommunity&&selected&&selectedServer&&<CommunityPanel initialTab={communityTab} serverId={selected} serverName={selectedServer.name} serverIcon={selectedServer.icon_data_url} inviteCode={selectedServer.invite_code} isOwner={selectedServer.role==="owner"} members={members} onClose={()=>setShowCommunity(false)}
       onUpdated={()=>{void loadServers();void loadChannels(selected);if(textChannelId)void loadContent(selected,textChannelId)}}
       onOpenDm={id=>openDM(id)}/>}
     {dmOpen&&<DMPanel userId={user.id} initialPeerId={dmPeer} onClose={()=>{setDmOpen(false);setDmPeer(null)}}/>}

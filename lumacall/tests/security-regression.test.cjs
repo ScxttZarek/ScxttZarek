@@ -261,3 +261,19 @@ test("server invite rotation checks current owner membership in the updating SQL
  assert.ok(source.includes("m.user_id=$3::uuid AND m.role='owner'"));
  assert.ok(source.includes('if(!updated.length)return asJson("Sem permissão para renovar o convite.",403)'));
 });
+
+test("final member management is directly accessible and call controls remain available",()=>{
+ const shell=code("v2/shell-parts.tsx"),app=code("v2/nova-app.tsx"),panel=code("v3/community-panel.tsx");
+ assert.ok(shell.includes('aria-label="Abrir membros e moderação"'));
+ assert.ok(shell.includes('aria-label="Abrir lista e gestão de membros"'));
+ assert.ok(app.includes('onMembers={()=>openCommunity("members")}'));
+ assert.ok(app.includes('initialTab={communityTab}'));
+ assert.ok(panel.includes('const [tab,setTab]=useState<Tab>(initialTab)'));
+ assert.ok(panel.includes('disabled={busy} type="button" onClick={()=>void moderate(m.id,m.name,"ban")}'));
+});
+test("community loading parallelizes moderation permissions and uses nonurgent list updates",()=>{
+ const p=code("v3/community-panel.tsx");
+ assert.ok(p.includes('apiV3<{bans:{user_id:string;name:string;reason:string}[]}>("/api/v3/moderation?serverId="+encodeURIComponent(serverId)).catch(()=>null)'));
+ assert.ok(p.includes('startTransition(()=>{'));
+ assert.ok(p.includes('role="status">{notice}'));
+});

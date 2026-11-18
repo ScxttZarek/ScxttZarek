@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { startTransition, useCallback, useEffect, useState } from "react";
 import { Ban, Check, ChevronDown, Edit3, Hash, Lock, Plus, Shield, Trash2, Users, Volume2, X } from "lucide-react";
 import { Avatar } from "../v2/ui-kit";
 import { apiV3, updateError, type Channel, type Member, type ServerRole, type Assignment, type Category, type ChannelGrant } from "./client";
@@ -13,11 +13,11 @@ const permissionLabels:{key:keyof Flags;label:string}[]=[
  {key:"moderation",label:"Expulsar e banir membros"},
  {key:"roles",label:"Gerenciar cargos"}
 ];
-export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwner,members,onClose,onUpdated,onOpenDm}:{
+export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwner,members,onClose,onUpdated,onOpenDm,initialTab="server"}:{
  serverId:string;serverName:string;serverIcon:string|null;inviteCode:string;isOwner:boolean;
- members:Member[];onClose:()=>void;onUpdated:()=>void;onOpenDm:(userId:string)=>void;
+ members:Member[];onClose:()=>void;onUpdated:()=>void;onOpenDm:(userId:string)=>void;initialTab?:Tab;
 }){
- const [tab,setTab]=useState<Tab>("server");
+ const [tab,setTab]=useState<Tab>(initialTab);
  const [serverNameDraft,setServerNameDraft]=useState(serverName);
  const [categories,setCategories]=useState<Category[]>([]);
  const [categoryName,setCategoryName]=useState("");
@@ -33,6 +33,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
  const [canModerate,setCanModerate]=useState(false);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
+ const [notice,setNotice]=useState("");
  const [newChannel,setNewChannel]=useState("");
  const [kind,setKind]=useState<"text"|"voice">("text");
  const [privateChannel,setPrivateChannel]=useState(false);
@@ -47,17 +48,19 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
  const [refreshing,setRefreshing]=useState(true);
 
  const load=useCallback(async()=>{
-  const [c,r,cat]=await Promise.all([
+  // Fetch moderation permission with other settings, avoiding a second round trip.
+  const [c,r,cat,mod]=await Promise.all([
    apiV3<{channels:Channel[];canManage:boolean;grants:ChannelGrant[]}>("/api/v3/channels?serverId="+encodeURIComponent(serverId)),
    apiV3<{roles:ServerRole[];assignments:Assignment[];canManage:boolean}>("/api/v3/roles?serverId="+encodeURIComponent(serverId)),
-   apiV3<{categories:Category[]}>("/api/v3/categories?serverId="+encodeURIComponent(serverId))
+   apiV3<{categories:Category[]}>("/api/v3/categories?serverId="+encodeURIComponent(serverId)),
+   apiV3<{bans:{user_id:string;name:string;reason:string}[]}>("/api/v3/moderation?serverId="+encodeURIComponent(serverId)).catch(()=>null)
   ]);
-  setChannels(c.channels);setCanManageChannels(c.canManage);setGrants(c.grants);setCategories(cat.categories);
-  setRoles(r.roles);setAssignments(r.assignments);setCanManageRoles(r.canManage);
-  try{
-   const mod=await apiV3<{bans:{user_id:string;name:string;reason:string}[]}>("/api/v3/moderation?serverId="+encodeURIComponent(serverId));
-   setCanModerate(true);setBans(mod.bans);
-  }catch{setCanModerate(false);setBans([]);}
+  // Large lists are nonurgent; prioritize clicking and typing.
+  startTransition(()=>{
+   setChannels(c.channels);setCanManageChannels(c.canManage);setGrants(c.grants);setCategories(cat.categories);
+   setRoles(r.roles);setAssignments(r.assignments);setCanManageRoles(r.canManage);
+   setCanModerate(Boolean(mod));setBans(mod?.bans??[]);
+  });
  },[serverId]);
  useEffect(()=>{
   let live=true;
@@ -67,11 +70,12 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
 
  async function run(work:()=>Promise<unknown>){
   if(busy)return;
-  setBusy(true);setError("");
+  setBusy(true);setError("");setNotice("");
   try{
    const result=await work();
    await load();onUpdated();
    if(result&&typeof result==="object"&&"warning" in result&&typeof result.warning==="string")setError(result.warning);
+   else setNotice("Alterações realizadas com sucesso.");
   }catch(e){setError(updateError(e));}
   finally{setBusy(false);}
  }
@@ -174,6 +178,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
      <button type="button" className="v3-icon-btn" title="Fechar" aria-label="Fechar configurações" onClick={onClose}><X size={20}/></button>
     </header>
     {error&&<p className="v3-error" role="alert">{error}</p>}
+    {notice&&!error&&<p className="v3-notice" role="status">{notice}</p>}
     {refreshing?<p className="v3-muted">Carregando configurações…</p>:<>
      {tab==="server"&&<>
       <p className="v3-muted">Identidade visual e opções básicas do servidor.</p>
@@ -266,7 +271,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
       </form>}
      </>}
      {tab==="members"&&<>
-      <p className="v3-muted">{members.length}/6 membros. Atribua cargos ou gerencie membros conforme suas permissões.</p>
+      <div className="v3-members-intro"><p className="v3-muted">{members.length}/6 membros. Gerencie cargos e permissões neste espaço.</p>{canModerate&&<span className="v3-mod-hint"><Ban size={14}/> Para expulsar ou banir, use os botões ao lado de cada membro.</span>}</div>
       <div className="v3-list">
        {members.map(m=><div key={m.id} className="v3-list-entry v3-member-item">
         <div className="v3-list-meta"><Avatar name={m.name} src={m.avatar_data_url} badge={m.badge} size={37}/>
@@ -279,7 +284,7 @@ export function CommunityPanel({serverId,serverName,serverIcon,inviteCode,isOwne
          </select></label>}
          {canManageRoles&&m.role!=="owner"&&roles.filter(r=>assignments.some(a=>a.user_id===m.id&&a.role_id===r.id)).map(r=><button className="v3-role-assigned" key={r.id} onClick={()=>void toggleRole(m.id,r.id)} title="Remover este cargo" style={{borderColor:r.color}}>{r.name} ×</button>)}
          <button type="button" onClick={()=>void block(m.id,m.name)}>Bloquear</button>
-         {canModerate&&m.role!=="owner"&&<><button type="button" onClick={()=>void moderate(m.id,m.name,"kick")}>Expulsar</button><button className="v3-danger" type="button" onClick={()=>void moderate(m.id,m.name,"ban")}>Banir</button></>}
+         {canModerate&&m.role!=="owner"&&<><button type="button" disabled={busy} onClick={()=>void moderate(m.id,m.name,"kick")}>Expulsar</button><button className="v3-danger" disabled={busy} type="button" onClick={()=>void moderate(m.id,m.name,"ban")}><Ban size={13}/> Banir</button></>
         </div>
        </div>)}
       </div>
